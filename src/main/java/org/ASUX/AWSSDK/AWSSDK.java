@@ -38,9 +38,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Properties;
 //import java.util.regex.*;
-
+import java.util.Set;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
 
 // https://github.com/eugenp/tutorials/tree/master/aws/src/main/java/com/baeldung
 // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
@@ -304,11 +309,47 @@ public class AWSSDK {
      *  @throws FileNotFoundException if the file named 'profile' does NOT exist in current-folder (it should contain the aws.accessKeyId and aws.secretAccessKey)
      *  @throws Exception if any AWS SDK timesout or other errors/exceptions from AWS SDK
      */
-    public static AWSSDK AWSCmdline( final boolean _verbose )  throws FileNotFoundException, Exception {
+    public static AWSSDK AWSCmdline( final boolean _verbose )  throws FileNotFoundException, Exception
+    {
+        final String HDR = CLASSNAME + ": AWSCmdline(): ";
+        final String homedir = System.getProperty("user.home") +"/.aws";
+        assert ( homedir != null );
+        // final String AWSProfileFileNameStr = homedir +"/profile";
+        final Path AWSProfileFilePath = FileSystems.getDefault().getPath( homedir, "profile" );
+        final String AWSProfileFileNameStr = AWSProfileFilePath.toString();
+
         try {
+            final Set<PosixFilePermission> perms = Files.getPosixFilePermissions( AWSProfileFilePath );
+            if ( perms.contains(PosixFilePermission.GROUP_READ) || perms.contains(PosixFilePermission.OTHERS_READ) )
+                throw new Exception( "SECURITY-RISK! filepath '"+ AWSProfileFileNameStr +"' is ACCESSIBLE to GROUP and OTHER user-groups."  );
+            //-----------------
+            // final File file = new File ( AWSProfileFileNameStr );
+            // file.setReadable( true, true ); // even if user forgets, make sure GROUP and OTHERS do NOT have permissions to this file.
+            // file.setWritable( true, true ); // even if user forgets, make sure GROUP and OTHERS do NOT have permissions to this file.
+            // file.setExecutable( true, true ); // even if user forgets, make sure GROUP and OTHERS do NOT have permissions to this file.
+            //-----------------
+            // final Set<PosixFilePermission> posixperms = new HashSet<PosixFilePermission>();
+            // posixperms.add( PosixFilePermission.OWNER_READ );
+            // posixperms.add( PosixFilePermission.OWNER_WRITE );
+            // posixperms.add( PosixFilePermission.OWNER_EXECUTE );
+            // // PosixFilePermission.GROUP_READ, GROUP_WRITE, GROUP_EXECUTE);
+            // // PosixFilePermission.OTHERS_READ, OTHERS_WRITE, OTHERS_EXECUTE);            
+            // Files.setPosixFilePermissions( AWSProfileFilePath, posixperms);
+        } catch(SecurityException se) {
+            if ( _verbose ) se.printStackTrace(System.err);
+            System.err.println( "\n"+ se +"\n\nUnable to ensure filepath ["+ AWSProfileFileNameStr +"] is NOT ACCESSIBLE to GROUP and OTHER user-groups.\n\n" );
+            // throw fe;
+        } catch(java.io.IOException fe) {
+            if ( _verbose ) fe.printStackTrace(System.err);
+            System.err.println( "\n"+ fe +"\n\nUnable to ensure filepath ["+ AWSProfileFileNameStr +"] is NOT ACCESSIBLE to GROUP and OTHER user-groups.\n\n" );
+            // throw fe;
+        }
+
+        try{
             final Properties p = new Properties();
-            p.load( new FileInputStream( AWSProfileFileName ) );
-            System.getProperties().load( new FileInputStream( "profile" ) );
+            p.load( new FileInputStream( AWSProfileFileNameStr ) );
+            // Not 100% understand why it is ___VERY IMPORTANT___ to load the 'Profile' file INTO the System.properties .. , otherwise.. I get NULLPointerException from within Amazon's AWS SDK-java-library.
+            System.getProperties().load( new FileInputStream( AWSProfileFileNameStr ) );
             final String AWSAccessKeyId = System.getProperty( "aws.accessKeyId");
             final String AWSSecretAccessKey = System.getProperty( "aws.secretAccessKey");
             // System.out.println( "AWSAccessKeyId=["+ AWSAccessKeyId +" AWSSecretAccessKey=["+ AWSSecretAccessKey +"]" );
@@ -320,11 +361,11 @@ public class AWSSDK {
 
         } catch(FileNotFoundException fe) {
             if ( _verbose ) fe.printStackTrace(System.err);
-            System.err.println( CLASSNAME + ": main(): \n\nUnable to load the AWS Profile file named ["+ AWSProfileFileName +"]. "+ fe );
+            System.err.println( "\n"+ fe +"\n\nUnable to load the AWS Profile file (containing AWS Key) at the path ["+ AWSProfileFileNameStr +"].\n" );
             throw fe;
         } catch (Exception e) {
             if ( _verbose ) e.printStackTrace(System.err);
-            System.err.println( CLASSNAME + ": main():  \n\nSee details in the lines above."+ e );
+            System.err.println( "\n"+ e +"\n\nSee details in the lines above.\n" );
             throw e;
         }
         // return null;
@@ -333,7 +374,6 @@ public class AWSSDK {
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
-    public final static String AWSProfileFileName = "profile";
 
     private void  CLIPBOARD( final String _regionStr ) {
         // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
