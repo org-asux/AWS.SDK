@@ -90,9 +90,9 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //=================================================================================
 
-    public void setCmdLineArgsAWS( final CmdLineArgsAWS _claa ) {
-        this.cmdlineargsaws = _claa;
-    }
+    // public void setCmdLineArgsAWS( final CmdLineArgsAWS _claa ) {
+    //     this.cmdlineargsaws = _claa;
+    // }
 
     public DumperOptions getDumperOptions() {
         return this.dumperopt;
@@ -164,6 +164,20 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
         this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
         final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose );
 
+        //=======================================
+        if ( this.dumperopt == null ) { // this won't be null, if this object was created within BatchCmdProcessor.java
+            this.dumperopt = org.ASUX.YAML.NodeImpl.GenericYAMLWriter.defaultConfigurationForSnakeYamlWriter();
+        }
+        switch( this.cmdlineargsaws.quoteType ) {
+            case DOUBLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.DOUBLE_QUOTED );  break;
+            case SINGLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.SINGLE_QUOTED );  break;
+            case LITERAL:       dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.LITERAL );        break;
+            case FOLDED:        dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.FOLDED );         break;
+            case PLAIN:         dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.PLAIN );          break;
+            default:            dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.FOLDED );         break;
+        }
+
+        //=======================================
         final ArrayList<String> cmdLineArgsStrArr = this.cmdlineargsaws.getArgs();
         if (this.verbose) System.out.println( HDR +" cmdLineArgsStrArr has "+ cmdLineArgsStrArr.size() +" containing =["+ cmdLineArgsStrArr +"]" );
         assert ( cmdLineArgsStrArr.size() >= 1 );
@@ -175,21 +189,21 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
 
         if ( awscmdStr.equals("--list-regions")) {
             final ArrayList<String> regionsList = awssdk.getRegions( );
-            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, this.dumperopt );
+            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, this.getDumperOptions() );
             return seqN;
         }
         if ( awscmdStr.equals("--list-AZs")) {
             if ( cmdLineArgsStrArr.size() < 2 )
                 throw new Exception( "AWS.SDK --list-AZs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
             final ArrayList<String> AZList = awssdk.getAZs( cmdLineArgsStrArr.get(1) ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
-            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.dumperopt );
+            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.getDumperOptions() );
             return seqN;
         }
         if ( awscmdStr.equals("--describe-AZs")) {
             if ( cmdLineArgsStrArr.size() < 2 )
                 throw new Exception( "AWS.SDK --list-AZs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
             final ArrayList< LinkedHashMap<String,Object> > AZList = awssdk.describeAZs( cmdLineArgsStrArr.get(1) ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
-            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.dumperopt );
+            final SequenceNode seqN = org.ASUX.YAML.NodeImpl.NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.getDumperOptions() );
             return seqN;
         }
         return null;
@@ -210,7 +224,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
      */
     public Object getDataFromReference( final String _src )
                                 throws FileNotFoundException, IOException, Exception
-    {   //return InputsOutputs.getDataFromReference( _src, this.memoryAndContext, this.getYamlScanner(), this.dumperopt, this.verbose );
+    {   //return InputsOutputs.getDataFromReference( _src, this.memoryAndContext, this.getYamlScanner(), this.getDumperOptions(), this.verbose );
         final String HDR = CLASSNAME + ": getDataFromReference("+ _src +"): ";
         throw new Exception( "UNIMPLEMENTED METHOD: "+ HDR );
     }
@@ -231,7 +245,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
     public void saveDataIntoReference( final String _dest, final Object _input )
                             throws FileNotFoundException, IOException, Exception
     {
-        // InputsOutputs.saveDataIntoReference( _dest, _input, this.memoryAndContext, this.getYamlWriter(), this.dumperopt, this.verbose );
+        // InputsOutputs.saveDataIntoReference( _dest, _input, this.memoryAndContext, this.getYamlWriter(), this.getDumperOptions(), this.verbose );
         final String HDR = CLASSNAME + ": saveDataIntoReference("+ _dest +","+ _input.getClass().getName() +"): ";
         throw new Exception( "UNIMPLEMENTED METHOD: "+ HDR );
     }
