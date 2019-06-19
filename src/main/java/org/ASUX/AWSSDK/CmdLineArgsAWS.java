@@ -36,6 +36,8 @@ import java.util.ArrayList;
 
 import org.apache.commons.cli.*;
 
+import static org.junit.Assert.*;
+
 /** <p>This class is a typical use of the org.apache.commons.cli package.</p>
  *  <p>This class has No other function - other than to parse the commandline arguments and handle user's input errors.</p>
  *  <p>For making it easy to have simple code generate debugging-output, added a toString() method to this class.</p>
@@ -148,7 +150,7 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             if ( cmd.hasOption(DESCRIBEAZS[1]) ) {
                 this.cmdType = Enums.SDKCommands.describeAZs;
             }
-            assert( this.cmdType != Enums.SDKCommands.Undefined );
+            assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
 
         } catch (ParseException e) {
             e.printStackTrace(System.err); // Too Serious an Error.  We do NOT have the benefit of '--verbose',as this implies a FAILURE to parse command line.

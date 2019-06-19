@@ -153,14 +153,14 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
                 throws FileNotFoundException, IOException, Exception
     {
         final String HDR = CLASSNAME + ": processCommand(): ";
-        // assert( _inputData instanceof String );
+        // assertTrue( _inputData instanceof String );
 
         // aws.sdk ----list-regions
         // aws.sdk ----list-AZs         us-east-2
         // aws.sdk ----describe-AZs     us-east-2
         // in 'cmdLineArgsStrArr' below, we DROP the 'aws.sdk' leaving the rest of the parameters
 
-        assert( _cmdLA instanceof CmdLineArgsAWS );
+        assertTrue( _cmdLA instanceof CmdLineArgsAWS );
         this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
         final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose );
 
@@ -180,7 +180,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
         //=======================================
         final ArrayList<String> cmdLineArgsStrArr = this.cmdlineargsaws.getArgs();
         if (this.verbose) System.out.println( HDR +" cmdLineArgsStrArr has "+ cmdLineArgsStrArr.size() +" containing =["+ cmdLineArgsStrArr +"]" );
-        assert ( cmdLineArgsStrArr.size() >= 1 );
+        assertTrue( cmdLineArgsStrArr.size() >= 1 );
         // the CmdLineArgsAWS class should take care of validating the # of cmd-line arguments and the type
 
         // skip the index[0] (in cmdLineArgsStrArr)  which must be 'AWS.SDK' (for this class to be invoked)

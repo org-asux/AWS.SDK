@@ -82,7 +82,7 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 // import com.amazonaws.services.ec2.model.StopInstancesRequest;
 // import com.amazonaws.services.ec2.model.UnmonitorInstancesRequest;
 
-// import static org.junit.Assert.*;
+import static org.junit.Assert.*;
 
 /**
  *  
@@ -313,7 +313,7 @@ public class AWSSDK {
     {
         final String HDR = CLASSNAME + ": AWSCmdline(): ";
         final String homedir = System.getProperty("user.home") +"/.aws";
-        assert ( homedir != null );
+        assertTrue( homedir != null );
         // final String AWSProfileFileNameStr = homedir +"/profile";
         final Path AWSProfileFilePath = FileSystems.getDefault().getPath( homedir, "profile" );
         final String AWSProfileFileNameStr = AWSProfileFilePath.toString();
