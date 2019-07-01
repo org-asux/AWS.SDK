@@ -49,6 +49,7 @@ public final class Enums
         describeAZs ("describe-AZs"),
         createKeyPair ("create-key-pair"),
         deleteKeyPair ("delete-key-pair"),
+        listKeyPairs  ("describe-key-pairs"),
         Undefined("undefined")
         ;
     

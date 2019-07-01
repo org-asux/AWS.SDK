@@ -60,6 +60,7 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String[] DESCRIBEAZS = { "dz", "describe-AZs", "describe all the AZs in a specified region" };
     public static final String[] CREATEKEYPAIR = { "ck", "create-key-pair", "create a new keypair within a specified region, with the provided-name of the keypair" };
     public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
+    public static final String[] LISTKEYPAIR = { "lk", "describe-key-pairs", "show all keypair within a specified region, matching the provided-name of the keypair" };
 
     //------------------------------------
     public Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
@@ -125,12 +126,17 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             delKeyPairCmdOpt.setArgs(2);
             delKeyPairCmdOpt.setOptionalArg(false);
             delKeyPairCmdOpt.setArgName("region> <New-SSHKeyPair-Name");
+        Option listKeyPairCmdOpt = new Option( LISTKEYPAIR[0], LISTKEYPAIR[1], false, LISTKEYPAIR[2] );
+            listKeyPairCmdOpt.setArgs(2);
+            listKeyPairCmdOpt.setOptionalArg(false);
+            listKeyPairCmdOpt.setArgName("region> <New-SSHKeyPair-Name");
 
         grp.addOption(listRegionsCmdOpt);
         grp.addOption(listAZsCmdOpt);
         grp.addOption(descAZsCmdOpt);
         grp.addOption(createKeyPairCmdOpt);
         grp.addOption(delKeyPairCmdOpt);
+        grp.addOption(listKeyPairCmdOpt);
         grp.setRequired(true);
 
         options.addOptionGroup(grp);
@@ -170,6 +176,9 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             }
             if ( cmd.hasOption(DELETEKEYPAIR[1]) ) {
                 this.cmdType = Enums.SDKCommands.deleteKeyPair;
+            }
+            if ( cmd.hasOption(LISTKEYPAIR[1]) ) {
+                this.cmdType = Enums.SDKCommands.listKeyPairs;
             }
             assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
 
