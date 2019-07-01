@@ -47,6 +47,8 @@ public final class Enums
         listRegions ("list-regions"),
         listAZs ("list-AZs"),
         describeAZs ("describe-AZs"),
+        createKeyPair ("create-key-pair"),
+        deleteKeyPair ("delete-key-pair"),
         Undefined("undefined")
         ;
     

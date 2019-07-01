@@ -55,9 +55,11 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
 
     public static final String CLASSNAME = CmdLineArgsAWS.class.getName();
 
-    public static final String[] LISTREGIONS = { "r", "list-regions", "list all the AWS regions" };
+    public static final String[] LISTREGIONS = { "lr", "list-regions", "list all the AWS regions" };
     public static final String[] LISTAZS = { "lz", "list-AZs", "List all the AZs in a specified region" };
     public static final String[] DESCRIBEAZS = { "dz", "describe-AZs", "describe all the AZs in a specified region" };
+    public static final String[] CREATEKEYPAIR = { "ck", "create-key-pair", "create a new keypair within a specified region, with the provided-name of the keypair" };
+    public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
 
     //------------------------------------
     public Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
@@ -115,9 +117,20 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             descAZsCmdOpt.setArgs(1);
             descAZsCmdOpt.setOptionalArg(false);
             descAZsCmdOpt.setArgName("region");
+        Option createKeyPairCmdOpt = new Option( CREATEKEYPAIR[0], CREATEKEYPAIR[1], false, CREATEKEYPAIR[2] );
+            createKeyPairCmdOpt.setArgs(2);
+            createKeyPairCmdOpt.setOptionalArg(false);
+            createKeyPairCmdOpt.setArgName("region> <ExistingSSHKeyPair-Name");
+        Option delKeyPairCmdOpt = new Option( DELETEKEYPAIR[0], DELETEKEYPAIR[1], false, DELETEKEYPAIR[2] );
+            delKeyPairCmdOpt.setArgs(2);
+            delKeyPairCmdOpt.setOptionalArg(false);
+            delKeyPairCmdOpt.setArgName("region> <New-SSHKeyPair-Name");
+
         grp.addOption(listRegionsCmdOpt);
         grp.addOption(listAZsCmdOpt);
         grp.addOption(descAZsCmdOpt);
+        grp.addOption(createKeyPairCmdOpt);
+        grp.addOption(delKeyPairCmdOpt);
         grp.setRequired(true);
 
         options.addOptionGroup(grp);
@@ -128,6 +141,8 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
 
         org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         org.apache.commons.cli.HelpFormatter formatter = new HelpFormatter();
+        // formatter.printOptions( new java.io.PrintWriter(System.out), 120, this.options, 0, 1);
+        formatter.setWidth(120);
         org.apache.commons.cli.CommandLine cmd;
 
         try {
@@ -149,6 +164,12 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             }
             if ( cmd.hasOption(DESCRIBEAZS[1]) ) {
                 this.cmdType = Enums.SDKCommands.describeAZs;
+            }
+            if ( cmd.hasOption(CREATEKEYPAIR[1]) ) {
+                this.cmdType = Enums.SDKCommands.createKeyPair;
+            }
+            if ( cmd.hasOption(DELETEKEYPAIR[1]) ) {
+                this.cmdType = Enums.SDKCommands.deleteKeyPair;
             }
             assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
 
@@ -191,8 +212,6 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             throw(e);
         }
     }
-
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
