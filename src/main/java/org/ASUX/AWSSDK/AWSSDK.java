@@ -34,7 +34,7 @@ package org.ASUX.AWSSDK;
 
 import org.ASUX.yaml.JSONTools;
 
-// import java.util.Map;
+import java.util.List;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -73,11 +73,12 @@ import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DeleteKeyPairResult;
+import com.amazonaws.services.ec2.model.DescribeKeyPairsRequest;
+import com.amazonaws.services.ec2.model.DescribeKeyPairsResult;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
 // import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
 // import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 // import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-// import com.amazonaws.services.ec2.model.DescribeKeyPairsRequest;
-// import com.amazonaws.services.ec2.model.DescribeKeyPairsResult;
 // import com.amazonaws.services.ec2.model.IpPermission;
 // import com.amazonaws.services.ec2.model.IpRange;
 // import com.amazonaws.services.ec2.model.MonitorInstancesRequest;
@@ -344,6 +345,27 @@ public class AWSSDK {
         // if ( jsonmap.get("KeyFingerprint") == null || jsonmap.get("KeyMaterial") == null ||   !   _MySSHKeyName.equals( jsonmap.get("KeyName") ) )
         //     throw new Exception( "FAILURE invoking AWS-SDK re: "+ HDR +"\nResponse="+response );
         return response.getKeyPair().getKeyMaterial();
+    }
+
+    public List<KeyPairInfo>  listKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
+        // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
+        // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
+        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        final DescribeKeyPairsRequest request = (_MySSHKeyName != null || "".equals( _MySSHKeyName.trim()) )
+                                ? new DescribeKeyPairsRequest().withKeyNames( _MySSHKeyName )
+                                : new DescribeKeyPairsRequest();
+        final DescribeKeyPairsResult response = ec2.describeKeyPairs( request );
+        final List<KeyPairInfo> keys = response.getKeyPairs();
+        if (this.verbose) System.out.println( HDR +"DescribeKeyPairsResult has "+ keys.size() +"keys =\n"+ keys );
+        // for ( KeyPairInfo x: keys ) {
+        //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyName=\n"+ x.getKeyName() );
+        //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyFingerprint=\n"+ x.getKeyFingerprint() );
+        //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyMaterial=\n"+ x.getKeyMaterial() );
+        // }
+        // This above println gives EXACTLY IDENTICAL to _MySSHKeyName
+        return keys;
     }
 
     //==============================================================================
