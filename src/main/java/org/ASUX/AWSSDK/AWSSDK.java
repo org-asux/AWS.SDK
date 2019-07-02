@@ -312,12 +312,22 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
+    /**
+     *  <p>Given the region, delete the key-pair, with the name provided as the 2nd argument.</p>
+     *  <p>You should ideally first call {@link #listKeyPairEC2(String, String)}, to ensure a key-pair with that name does Not already exist.</p>
+     *  <p>ATTENTION! If the keypair does Not exist, AWS APIs return quietly  So, the only way to know something actually got deleted? .. is to _COMPARE_ the output of {@link #listKeyPairEC2(String, String)} before and after that call to this method .</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _MySSHKeyName optional (in fact, you can pass in 'null' or an empty-string as a string-value and it will be treated as java's null)
+     *  @return a list of at least 1 item (see above note as to why you'll never see a list of zero-size.)
+     *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
+     */
     public void deleteKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/DeleteKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final String HDR = CLASSNAME +"deleteKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
         final DeleteKeyPairRequest request = new DeleteKeyPairRequest().withKeyName( _MySSHKeyName );
         final DeleteKeyPairResult response = ec2.deleteKeyPair(request);
         if ( this.verbose) System.out.println( HDR +"DeleteKeyPairResult =\n"+ response.toString() );
@@ -325,12 +335,22 @@ public class AWSSDK {
             throw new Exception( "FAILURE invoking AWS-SDK re: "+ HDR +"\nResponse="+response );
     }
 
+    /**
+     *  <p>Given the region, you'll get the private-key 'material' for a new key, with the name provided as the 2nd argument.</p>
+     *  <p>You should first call {@link #listKeyPairEC2(String, String)}, to ensure a key-pair with that name does Not already exist.</p>
+     *  <p>Currently, no attempt is made here to verify the private-key 'material', with the key's fingerprint.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _MySSHKeyName optional (in fact, you can pass in 'null' or an empty-string as a string-value and it will be treated as java's null)
+     *  @return a list of at least 1 item (see above note as to why you'll never see a list of zero-size.)
+     *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
+     */
     public String createKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
         final CreateKeyPairRequest request = new CreateKeyPairRequest().withKeyName( _MySSHKeyName );
         final CreateKeyPairResult response = ec2.createKeyPair(request);
         if (this.verbose) System.out.println( HDR +"CreateKeyPairResult =\n"+ response.getKeyPair().toString() );
@@ -347,25 +367,43 @@ public class AWSSDK {
         return response.getKeyPair().getKeyMaterial();
     }
 
+    /**
+     *  <p>Given the region, you'll get back the list of all KeyPairs associated with EC2 instances in that region.  If you provide the OPTIONAL KeyPairname, then only KeyPairs matching it will be returned.</p>
+     *  <p>unfortunately, if the optional KeyPair-name is invalid, you'll get a lot of warnings and error messages on STDERR, that comes from  com.amazonaws.util library.  I can't prevent it.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _MySSHKeyName optional (in fact, you can pass in 'null' or an empty-string as a string-value and it will be treated as java's null)
+     *  @return a list of at least 1 item (see above note as to why you'll never see a list of zero-size.)
+     *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
+     */
     public List<KeyPairInfo>  listKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
-        final DescribeKeyPairsRequest request = (_MySSHKeyName != null || "".equals( _MySSHKeyName.trim()) )
-                                ? new DescribeKeyPairsRequest().withKeyNames( _MySSHKeyName )
-                                : new DescribeKeyPairsRequest();
-        final DescribeKeyPairsResult response = ec2.describeKeyPairs( request );
-        final List<KeyPairInfo> keys = response.getKeyPairs();
-        if (this.verbose) System.out.println( HDR +"DescribeKeyPairsResult has "+ keys.size() +"keys =\n"+ keys );
+        final DescribeKeyPairsRequest request = (_MySSHKeyName == null || "".equals( _MySSHKeyName.trim())  || "null".equals( _MySSHKeyName.trim()) )
+                                ? new DescribeKeyPairsRequest()
+                                : new DescribeKeyPairsRequest().withKeyNames( _MySSHKeyName );
+
+        
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
+        try {
+            final DescribeKeyPairsResult response = ec2.describeKeyPairs( request );
+            final List<KeyPairInfo> keys = response.getKeyPairs();
+            if (this.verbose) System.out.println( HDR +"DescribeKeyPairsResult has "+ keys.size() +"keys =\n"+ keys );
+            return keys;
+        } catch( com.amazonaws.services.ec2.model.AmazonEC2Exception ae ) {
+            if ( ae.getMessage().contains("does not exist (Service: AmazonEC2; Status Code: 400; Error Code: InvalidKeyPair.NotFound; ") ) {
+                return new LinkedList<KeyPairInfo>();
+            } else
+                throw ae;
+        }
         // for ( KeyPairInfo x: keys ) {
         //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyName=\n"+ x.getKeyName() );
         //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyFingerprint=\n"+ x.getKeyFingerprint() );
         //     if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyMaterial=\n"+ x.getKeyMaterial() );
         // }
         // This above println gives EXACTLY IDENTICAL to _MySSHKeyName
-        return keys;
     }
 
     //==============================================================================
