@@ -257,7 +257,9 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
             if ( cmdLineArgsStrArr.size() < 3 ) // aws.sdk --create-keypair AWSRegion MySSHKeyName
                 throw new Exception( "AWS.SDK --describe-key-pairs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
             final String AWSRegion3 = cmdLineArgsStrArr.get(1);
-            final String mySSHKeyName3 = cmdLineArgsStrArr.get(2);
+            String mySSHKeyName3 = cmdLineArgsStrArr.get(2);
+            if ( mySSHKeyName3 == null || "null".equals( mySSHKeyName3 ) || mySSHKeyName3.trim().length() <= 0 )
+                mySSHKeyName3 = null;
             final List<com.amazonaws.services.ec2.model.KeyPairInfo> keys = awssdk.listKeyPairEC2( AWSRegion3, mySSHKeyName3 ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
             final java.util.LinkedList<Node> seqs = new java.util.LinkedList<Node>();
             final SequenceNode seqNode4 = new SequenceNode( Tag.SEQ, false,     seqs,         null, null, this.getDumperOptions().getDefaultFlowStyle() );
