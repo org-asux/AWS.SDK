@@ -15,10 +15,12 @@ echo "Usage: $0 [--verbose]"
 # endif
 
 ###------------------------------
+set PROJECTNAME=AWS-SDK
+
 # set YAMLLIB=( --yamllibrary com.esotericsoftware.yamlbeans )
 set YAMLLIB=( --yamllibrary NodeImpl )
 set ORGASUXFLDR=/mnt/development/src/org.ASUX
-set PROJECTPATH=${ORGASUXFLDR}/AWS-SDK
+set PROJECTPATH=${ORGASUXFLDR}/${PROJECTNAME}
 set path=( $path ${PROJECTPATH} )
 set TESTSRCFLDR=${PROJECTPATH}/test
 if (  !  $?CLASSPATH ) setenv CLASSPATH ''
@@ -43,7 +45,7 @@ echo -n "Sleep interval? >>"; set DELAY=$<
 if ( "$DELAY" == "" ) set DELAY=2
 
 set TEMPLATEFLDR=${TESTSRCFLDR}/outputs
-set OUTPUTFLDR=/tmp/test-output
+set OUTPUTFLDR=/tmp/test-output-${PROJECTNAME}
 
 ###------------------------------
 \rm -rf ${OUTPUTFLDR}
@@ -82,9 +84,27 @@ diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
+asux yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null ' -i /dev/null \
+        -o ${OUTPFILE} >! ${OUTPFILE}.stdout
+diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
+
+# 3
+@ TESTNUM = $TESTNUM + 1
+set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
+echo $OUTPFILE
 asux yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2' -i /dev/null \
         -o ${OUTPFILE}
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+
+# 4
+@ TESTNUM = $TESTNUM + 1
+set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
+echo $OUTPFILE
+asux yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem' -i /dev/null \
+        -o ${OUTPFILE} >! ${OUTPFILE}.stdout
+diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 ###---------------------------------
 
