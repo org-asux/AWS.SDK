@@ -87,6 +87,15 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 // import com.amazonaws.services.ec2.model.StartInstancesRequest;
 // import com.amazonaws.services.ec2.model.StopInstancesRequest;
 // import com.amazonaws.services.ec2.model.UnmonitorInstancesRequest;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listResourceRecordSets-com.amazonaws.services.route53.model.ListResourceRecordSetsRequest-
+import com.amazonaws.services.route53.AmazonRoute53;
+import com.amazonaws.services.route53.AmazonRoute53Client;
+import com.amazonaws.services.route53.AmazonRoute53ClientBuilder;
+import com.amazonaws.services.route53.model.ListHostedZonesByNameRequest;
+import com.amazonaws.services.route53.model.ListHostedZonesByNameResult;
+import com.amazonaws.services.route53.model.HostedZone;
+// import com.amazonaws.services.route53.model.ListResourceRecordSetsResult;
+// import com.amazonaws.services.route53.model.ListResourceRecordSetsRequest;
 
 import static org.junit.Assert.*;
 
@@ -217,6 +226,16 @@ public class AWSSDK {
         return ec2;
     }
 
+    private AmazonRoute53 getAWSRoute53Hndl( final String _regionStr ) {
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html 
+        // final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.defaultClient();
+        final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        // final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.standard().build();
+        // To use the default credential/region provider chain 
+        // AmazonRoute53Client Rt53 = AmazonRoute53Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+        return Rt53;
+    }
+
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
@@ -318,7 +337,6 @@ public class AWSSDK {
      *  <p>ATTENTION! If the keypair does Not exist, AWS APIs return quietly  So, the only way to know something actually got deleted? .. is to _COMPARE_ the output of {@link #listKeyPairEC2(String, String)} before and after that call to this method .</p>
      *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
      *  @param _MySSHKeyName optional (in fact, you can pass in 'null' or an empty-string as a string-value and it will be treated as java's null)
-     *  @return a list of at least 1 item (see above note as to why you'll never see a list of zero-size.)
      *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
      */
     public void deleteKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
@@ -480,6 +498,54 @@ public class AWSSDK {
         }
         // return null;
     }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  Given a FQDN like 'example.com' (if that is hosted by Route53), you'll get the ZoneID (like 'Z2NF71MJ75KYXK') back (if search request is valid)
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _DNSHostedZoneName a NotNull string like 'server.subdomain.example.com'
+     *  @return a NotNull string like 'Z2NF71MJ75KYXK' (representing the HostedZoneID as you can see within Route53 domain)
+     *  @throws Exception throws InvalidInputException, if input is not valid /or/ throws InvalidDomainNameException, if specified domain name is not valid.
+     */
+    public final String getHostedZoneId( final String _regionStr, final String _DNSHostedZoneName ) throws Exception {
+        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _DNSHostedZoneName +"): ";
+        final AmazonRoute53 Rt53 = this.getAWSRoute53Hndl( _regionStr );
+        final ListHostedZonesByNameRequest req = new ListHostedZonesByNameRequest().withDNSName( _DNSHostedZoneName +"." );
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listHostedZonesByName-com.amazonaws.services.route53.model.ListHostedZonesByNameRequest-
+        final ListHostedZonesByNameResult response = Rt53.listHostedZonesByName( req ); // Retrieves a list of the public + private hosted zones
+        // Attention: 'ListHostedZonesByNameResult' (ListHostedZonesByName()) sorts hosted-zones by name with the labels reversed. For example:    com.example.www.
+        String zoneid = response.getHostedZoneId(); // !!!!!!!!!!!!!!!!!! ATTENTION !!!!!!!!!!!!!!!!!!!!! Apparently, this always returns 'null'.   So, we need if-else below.
+        if ( zoneid != null ) {
+            return zoneid;
+        } else {
+            final List<HostedZone> zones = response.getHostedZones();
+            if ( zones.size() > 0 ) {
+                final HostedZone zone1 = zones.get(0);
+                if (this.verbose) System.out.println( HDR + "_DNSHostedZoneName " + _DNSHostedZoneName + " zone1= " + zone1  + " zone1.getId()= " + zone1.getId()  );
+                return zone1.getId().replaceFirst( "/hostedzone/", "" );
+            } else {
+                throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
+            }
+        }
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
