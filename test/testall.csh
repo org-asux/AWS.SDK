@@ -15,21 +15,35 @@ echo "Usage: $0 [--verbose]"
 # endif
 
 ###------------------------------
+which asux >& /dev/null
+if ( $status == 0 ) then
+        set ORGASUXFLDR=`which asux`
+        set ORGASUXFLDR=$ORGASUXFLDR:h
+        setenv ORGASUXFLDR $ORGASUXFLDR
+        echo "ORGASUXFLDR=$ORGASUXFLDR"
+else
+        foreach FLDR ( ~/org.ASUX   ~/github/org.ASUX   ~/github.com/org.ASUX  /mnt/development/src/org.ASUX     /opt/org.ASUX  /tmp/org.ASUX  )
+                if ( -e "${FLDR}/asux" ) then
+                        set ORGASUXFLDR="$FLDR"
+                        set path=( $path "${ORGASUXFLDR}" )
+                endif
+        end
+endif
+
+###------------------------------
 set PROJECTNAME=AWS-SDK
 
 # set YAMLLIB=( --yamllibrary com.esotericsoftware.yamlbeans )
 set YAMLLIB=( --yamllibrary NodeImpl )
-set ORGASUXFLDR=/mnt/development/src/org.ASUX
-set PROJECTPATH=${ORGASUXFLDR}/${PROJECTNAME}
-set path=( $path ${PROJECTPATH} )
-set TESTSRCFLDR=${PROJECTPATH}/test
-if (  !  $?CLASSPATH ) setenv CLASSPATH ''
+set PROJECTPATH="${ORGASUXFLDR}/${PROJECTNAME}"
+set TESTSRCFLDR="${PROJECTPATH}/test"
 
 ###------------------------------
-if ( $#argv == 1 ) then
-        set VERBOSE=1
+if ( $#argv == 1 && "$1" == "--verbose" ) then
+        set VERBOSE="--verbose"
+        shift
 else
-        unset VERBOSE
+        set VERBOSE=""
 endif
 
 chdir ${TESTSRCFLDR}
@@ -54,7 +68,7 @@ mkdir -p ${OUTPUTFLDR}
 alias diff \diff -bB
 
 ###------------------------------
-set JARFLDR=${ORGASUXFLDR}/lib
+set JARFLDR="${ORGASUXFLDR}/lib"
 
 # set MYJAR1=${JARFLDR}/org.ASUX.common.jar
 # set MYJAR2=${JARFLDR}/org.ASUX.yaml.jar
@@ -62,9 +76,12 @@ set JARFLDR=${ORGASUXFLDR}/lib
 # set YAMLBEANSJAR=${JARFLDR}/com.esotericsoftware.yamlbeans-yamlbeans-1.13.jar
 # set JUNITJAR=${JARFLDR}/junit.junit.junit-4.8.2.jar
 # set COMMONSCLIJAR=${JARFLDR}/commons-cli-1.4.jar
-# setenv CLASSPATH  ${CLASSPATH}:${COMMONSCLIJAR}:${JUNITJAR}:${YAMLBEANSJAR}:${MYJAR} ## to get the jndi.properties
-
-if ( $?VERBOSE ) echo $CLASSPATH
+# if ( $?CLASSPATH ) then
+#         setenv CLASSPATH  ${CLASSPATH}:${COMMONSCLIJAR}:${JUNITJAR}:${YAMLBEANSJAR}:${MYJAR} ## to get the jndi.properties
+# else
+#         setenv CLASSPATH  ${COMMONSCLIJAR}:${JUNITJAR}:${YAMLBEANSJAR}:${MYJAR} ## to get the jndi.properties
+# endif
+# if ( $?VERBOSE ) echo $CLASSPATH
 
 ###---------------------------------
 
@@ -76,7 +93,7 @@ set TESTNUM=1
 # 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux yaml batch ' aws.sdk --create-key-pair ap-south-1 testSSHKeyPair2 ' -i /dev/null \
+asux ${VERBOSE} yaml batch ' aws.sdk --create-key-pair ap-south-1 testSSHKeyPair2 ' -i /dev/null \
         -o ${OUTPFILE}
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 
@@ -84,7 +101,7 @@ diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null ' -i /dev/null \
+asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null ' -i /dev/null \
         -o ${OUTPFILE} >! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
@@ -93,7 +110,7 @@ diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2' -i /dev/null \
+asux ${VERBOSE} yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2' -i /dev/null \
         -o ${OUTPFILE}
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 
@@ -101,7 +118,7 @@ diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem' -i /dev/null \
+asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem' -i /dev/null \
         -o ${OUTPFILE} >! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
