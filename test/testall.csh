@@ -38,10 +38,10 @@ endif
 
 ###------------------------------
 set PROJECTNAME=AWS-SDK
+set PROJECTPATH="${ORGASUXFLDR}/AWS/${PROJECTNAME}"
 
 # set YAMLLIB=( --yamllibrary com.esotericsoftware.yamlbeans )
 set YAMLLIB=( --yamllibrary NodeImpl )
-set PROJECTPATH="${ORGASUXFLDR}/${PROJECTNAME}"
 set TESTSRCFLDR="${PROJECTPATH}/test"
 
 ###------------------------------
