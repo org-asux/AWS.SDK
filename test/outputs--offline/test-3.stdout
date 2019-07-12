@@ -1,0 +1,1 @@
+org.ASUX.yaml.AWSSDKdeleteKeyPairEC2(ap-south-1,testSSHKeyPair2): AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!
