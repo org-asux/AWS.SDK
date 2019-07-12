@@ -171,7 +171,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
 
         assertTrue( _cmdLA instanceof CmdLineArgsAWS );
         this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
-        final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose );
+        final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose, this.cmdlineargsaws.isOffline() );
 
         //=======================================
         if ( this.dumperopt == null ) { // this won't be null, if this object was created within BatchCmdProcessor.java

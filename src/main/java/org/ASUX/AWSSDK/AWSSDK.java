@@ -32,23 +32,49 @@
 
 package org.ASUX.AWSSDK;
 
+import org.ASUX.common.Macros;
+
 import org.ASUX.yaml.JSONTools;
+import org.ASUX.yaml.YAML_Libraries;
+
+import org.ASUX.YAML.NodeImpl.ReadYamlEntry;
+import org.ASUX.YAML.NodeImpl.BatchCmdProcessor;
+import org.ASUX.YAML.NodeImpl.NodeTools;
+import org.ASUX.YAML.NodeImpl.GenericYAMLScanner;
+import org.ASUX.YAML.NodeImpl.GenericYAMLWriter;
+import org.ASUX.YAML.NodeImpl.InputsOutputs;
 
 import java.util.List;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Properties;
-//import java.util.regex.*;
 import java.util.Set;
+import java.util.Properties;
 
+import java.io.IOException;
 import java.io.File;
+import java.io.InputStream;
 import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.io.FileNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
+
+
+// https://yaml.org/spec/1.2/spec.html#id2762107
+import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.NodeId;
+import org.yaml.snakeyaml.nodes.Node;
+import org.yaml.snakeyaml.nodes.ScalarNode;
+import org.yaml.snakeyaml.nodes.MappingNode;
+import org.yaml.snakeyaml.nodes.SequenceNode;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.error.Mark; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/error/Mark.java
+import org.yaml.snakeyaml.DumperOptions; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/DumperOptions.java
+
 
 // https://github.com/eugenp/tutorials/tree/master/aws/src/main/java/com/baeldung
 // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
@@ -112,18 +138,30 @@ public class AWSSDK {
     public final boolean verbose;
 
     /**
+     *  <p>Whether this entire class and all it's methods will use "cached" output (a.k.a. files under {ASUXCFNHOME}/configu/inputs folder), instead of invoking AWS SDK calls.</p>
+     *  <p>In addition to ensuring this class works for those without an AWS account, it is quite helpful from a speed perspective!</p>
+     */
+    public final boolean offline;
+
+    /**
      *  This constructor allows us to centralize the authentication.  But then again.. what if Classses have to pass this object around?  For that, use the Static Factory function connect()
      *  @param _verbose Whether you want deluge of debug-output onto System.out.
      *  @param _AWSAccessKeyId your AWS credential with API-level access as appropriate
      *  @param _AWSSecretAccessKey your AWS credential with API-level access as appropriate
      */
-    public AWSSDK(boolean _verbose, final String _AWSAccessKeyId, final String _AWSSecretAccessKey) {
+    public AWSSDK( final boolean _verbose, final String _AWSAccessKeyId, final String _AWSSecretAccessKey) {
         this.verbose = _verbose;
+        this.offline = false;
         this.AWSAuthenticate( _AWSAccessKeyId, _AWSSecretAccessKey );
     }
 
-    private AWSSDK() {
-        this.verbose = false;
+    /**
+     *  <p>If you are <b>SURE</b> that you'd like to use an object of this class and all it's methods in an <b>OFFLINE</b> (a.k.a. no internet available), or .. to use ONLY "cached" output (a.k.a. files under {ASUXCFNHOME}/configu/inputs folder) for faster responses, or .. to _ENSURE_ No AWS SDK calls are invoked (because you do not have/do want to use an AWS API Key).</p>
+     *  @param _verbose Whether you want deluge of debug-output onto System.out.
+     */
+    public AWSSDK( final boolean _verbose ) {
+        this.verbose = _verbose;
+        this.offline = true;
     }
 
     //------------------------------------------------------------------------------
@@ -193,7 +231,9 @@ public class AWSSDK {
      * @throws MyAWSException if code has Not yet logged in with AWS credentials
      */
     private AWSStaticCredentialsProvider getAWSAuthenticationHndl() throws MyAWSException {
-        if ( this.AWSAuthenticationHndl == null )
+        if ( this.offline )
+            throw new MyAWSException( CLASSNAME +": getAWSAuthenticationHndl(no-arg): INTERNAL SERIOUS ERROR: !!!! Logic-mistake in code !!!! UN-expectedly invoked the AWSAuthenticate(AccessKey,SecretKey) function." );
+        else if ( this.AWSAuthenticationHndl == null )
             throw new MyAWSException( CLASSNAME +": getAWSAuthenticationHndl(no-arg): code hasn't !!!!SUCCESSFULLY!!!! invoked the AWSAuthenticate(AccessKey,SecretKey) function." );
         else 
             return this.AWSAuthenticationHndl;
@@ -205,6 +245,8 @@ public class AWSSDK {
      *  @param _AWSSecretAccessKey your AWS credential with API-level access as appropriate
      */
     private void AWSAuthenticate( final String _AWSAccessKeyId, final String _AWSSecretAccessKey ) {
+        assertTrue ( this.offline == false );
+            // throw new MyAWSException( CLASSNAME +": AWSAuthenticate(..,..): INTERNAL SERIOUS ERROR: !!!! Logic-mistake in code !!!! UN-expectedly invoked the this method." );
         this.bTried2Authenticate = true;
         // Authenticate into AWS
         // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
@@ -240,11 +282,123 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
+    public static final String ORGASUXHOME      = System.getProperty("ORGASUXHOME");
+    public static final String AWSHOME          = System.getProperty("AWSHOME");
+    public static final String AWSCFNHOME       = System.getProperty("AWSCFNHOME");
+
+    //==============================================================================
     /**
-     * Pass in a region-name and get back the output of the cmdline as JSON (cmdline being:- aws ec2 describe-regions --profile ______ --output json)
-     * @return An array of YAML-Maps.  Its exactly === cmdline output of: aws ec2 describe-regions --profile ______ --output json
+     *  Given a file-path to a YAML file, load the contents into a SnakeYaml implementation Node.class
+     *  @param _absoluteFilePath a NotNull file-path that is === new File(...).getAbsolutePath() (Note: __NO__ guarantees if it is a RELATIVE-path)
+     *  @return a NotNull node
+     *  @throws Exception thrown by the org.ASUX.YAML.NodeImpl.GenericYAMLScanner class that is used to implement this method.
      */
-    public ArrayList<String> getRegions( ) {
+    public Node readYamlFile( final String _absoluteFilePath ) throws Exception
+    {   final String HDR = CLASSNAME + ": readYamlFile(): ";
+        
+        final InputStream is1 = new FileInputStream( _absoluteFilePath );
+        final InputStreamReader filereader = new InputStreamReader(is1);
+        final GenericYAMLScanner yamlscanner = new GenericYAMLScanner( this.verbose );
+        yamlscanner.setYamlLibrary( YAML_Libraries.NodeImpl_Library );
+        final Node node = yamlscanner.load( filereader );
+        if ( this.verbose ) System.out.println( HDR +" file contents= '" + NodeTools.Node2YAMLString( node ) + "");
+        return node;
+    }
+
+    //==============================================================================
+    /**
+     *  This is a specialization of org.ASUX.YAML.NodeImpl.NodeTools.Node2Map(), in that the output is ArrayList&lt; String &gt;, which is needed by {@link #getAZs_Offline(String)} and {@link #getRegions()}
+     *  @param node an NotNull instance of SnakeYaml implementation Node
+     *  @return a NotNull instance
+     */
+    public ArrayList<String> convNode2ArrayList( final Node node ) {
+        assertTrue( node instanceof SequenceNode );
+        final SequenceNode seqN = (SequenceNode) node;
+        final java.util.List<Node> seqs = seqN.getValue();
+        final ArrayList<String> retarr = new ArrayList<String>();
+        for( Node subN : seqs ) {
+            assertTrue( subN instanceof ScalarNode );
+            // @SuppressWarnings("unchecked")
+            final ScalarNode scalarKey = (ScalarNode) subN;
+            final String regionName = scalarKey.getValue();
+            if ( this.verbose ) System.out.print( "\t" + regionName ); // No EOLN !
+            retarr.add( regionName );
+        }
+        if ( this.verbose ) System.out.println();
+        return retarr;
+    }
+
+    /**
+     *  This is a specialization of org.ASUX.YAML.NodeImpl.NodeTools.Node2Map(), in that the output is ArrayList&lt; LinkedHashMap &lt;String,Object&gt; &gt;, which is needed by {@link #describeAZs_Offline(String)}
+     *  @param node an NotNull instance of SnakeYaml implementation Node
+     *  @return a NotNull instance
+     *  @throws Exception thrown by NodeTools.Node2Map() in case of unimplemented support for exotic YAML-content
+     */
+    public ArrayList< LinkedHashMap<String,Object> > convNode2ArrayOfMaps( final Node node ) throws Exception {
+        assertTrue( node instanceof SequenceNode );
+        final SequenceNode seqN = (SequenceNode) node;
+        final java.util.List<Node> seqs = seqN.getValue();
+        final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList< LinkedHashMap<String,Object> >();
+        for( Node subN : seqs ) {
+            assertTrue( subN instanceof MappingNode );
+            final org.ASUX.common.Output.Object<?> ooo = NodeTools.Node2Map( this.verbose, node );
+            assertTrue( ooo.getType() != org.ASUX.common.Output.OutputType.Type_LinkedHashMap );
+            if ( this.verbose ) System.out.println( ooo.getMap() );
+            retarr.add( ooo.getMap() );
+        }
+        return retarr;
+    }
+
+    //==============================================================================
+    /**
+     *  An offline implementation (substituting for {@link #getRegions()}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  @return a NotNull instance
+     *  @throws Exception thrown if any issues reading the cached YAML files.
+     */
+    public ArrayList<String> getRegions_Offline() throws Exception {
+        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWSRegions.yaml";
+        return convNode2ArrayList( readYamlFile( YAMLFile ) );
+    }
+
+    //==============================================================================
+    /**
+     *  An offline implementation (substituting for {@link #getAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @return a NotNull instance
+     *  @throws Exception thrown if any issues reading the cached YAML files.
+     */
+    public ArrayList<String> getAZs_Offline( final String _regionStr ) throws Exception {
+        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        return convNode2ArrayList( readYamlFile( YAMLFile ) );
+    }
+
+    /**
+     *  An offline implementation (substituting for {@link #describeAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @return a NotNull instance
+     *  @throws Exception thrown if any issues reading the cached YAML files.
+     */
+    public ArrayList< LinkedHashMap<String,Object> > describeAZs_Offline( final String _regionStr ) throws Exception  {
+        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        return convNode2ArrayOfMaps( readYamlFile( YAMLFile ) );
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  Pass in a region-name and get back the output of the cmdline as JSON (cmdline being:- aws ec2 describe-regions --profile ______ --output json)
+     *  @return An array of YAML-Maps.  Its exactly === cmdline output of: aws ec2 describe-regions --profile ______ --output json
+     *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
+     */
+    public ArrayList<String> getRegions() throws Exception {
+        if ( this.offline ) return getRegions_Offline();
+
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( null );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         final DescribeRegionsResult regions_response = ec2.describeRegions();
@@ -257,11 +411,14 @@ public class AWSSDK {
     }
 
     /**
-     * Pass in a region-name and get back ONLY THE AZ-NAMES in the output of the cmdline as JSON (cmdline being:- aws ec2 describe-availability-zones --region us-east-2 --profile ______ --output json)
-     * @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
-     * @return An array of Strings.
+     *  Pass in a region-name and get back ONLY THE AZ-NAMES in the output of the cmdline as JSON (cmdline being:- aws ec2 describe-availability-zones --region us-east-2 --profile ______ --output json)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @return An array of Strings.
+     *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
      */
-    public ArrayList<String>  getAZs( final String _regionStr ) {
+    public ArrayList<String>  getAZs( final String _regionStr ) throws Exception {
+        if ( this.offline ) return getAZs_Offline( _regionStr );
+
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         DescribeAvailabilityZonesResult zones_response = ec2.describeAvailabilityZones();
@@ -280,6 +437,8 @@ public class AWSSDK {
      * @throws Exception any runtime Exception
      */
     public ArrayList< LinkedHashMap<String,Object> >  describeAZs( final String _regionStr ) throws Exception {
+        if ( this.offline ) return describeAZs_Offline( _regionStr );
+
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         DescribeAvailabilityZonesResult zones_response = ec2.describeAvailabilityZones();
@@ -340,9 +499,14 @@ public class AWSSDK {
      *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
      */
     public void deleteKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
+        final String HDR = CLASSNAME +"deleteKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            return;
+        }
+
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/DeleteKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
-        final String HDR = CLASSNAME +"deleteKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
@@ -363,9 +527,14 @@ public class AWSSDK {
      *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
      */
     public String createKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
+        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            return "__OFFLINE_MODE - AWS.SDK PROJECT - createKeyPairEC2()";
+        }
+
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
-        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
@@ -394,9 +563,14 @@ public class AWSSDK {
      *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
      */
     public List<KeyPairInfo>  listKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
+        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            return new ArrayList<KeyPairInfo>();
+        }
+
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
-        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         final DescribeKeyPairsRequest request = (_MySSHKeyName == null || "".equals( _MySSHKeyName.trim())  || "null".equals( _MySSHKeyName.trim()) )
@@ -431,11 +605,12 @@ public class AWSSDK {
     /**
      * Initialize &amp; Connect into AWS, by leveraging the AWS-credentials stored in a file called 'profile' in the current working directory from which this code is being run
      *  @param _verbose Whether you want deluge of debug-output onto System.out.
+     *  @param _offline 'true' === this entire class and all it's methods will use "cached" output (a.k.a. files under {ASUXCFNHOME}/configu/inputs folder), instead of invoking AWS SDK calls.
      *  @return return a handle to the SDK - for further calls to methods within this class
      *  @throws FileNotFoundException if the file named 'profile' does NOT exist in current-folder (it should contain the aws.accessKeyId and aws.secretAccessKey)
      *  @throws Exception if any AWS SDK timesout or other errors/exceptions from AWS SDK
      */
-    public static AWSSDK AWSCmdline( final boolean _verbose )  throws FileNotFoundException, Exception
+    public static AWSSDK AWSCmdline( final boolean _verbose, final boolean _offline )  throws FileNotFoundException, Exception
     {
         final String HDR = CLASSNAME + ": AWSCmdline(): ";
         final String homedir = System.getProperty("user.home");
@@ -482,10 +657,15 @@ public class AWSSDK {
             final String AWSSecretAccessKey = System.getProperty( "aws.secretAccessKey");
             // System.out.println( "AWSAccessKeyId=["+ AWSAccessKeyId +" AWSSecretAccessKey=["+ AWSSecretAccessKey +"]" );
 
-            final AWSSDK awssdk = ( AWSSDK.getConnectionNoThrow() != null )
-                                    ? AWSSDK.getConnectionNoThrow()
-                                    : AWSSDK.getConnection( _verbose, AWSAccessKeyId, AWSSecretAccessKey );
-            return awssdk;
+            if ( _offline ) {
+                final AWSSDK awssdk = new AWSSDK(_verbose);
+                return awssdk;
+            } else {
+                final AWSSDK awssdk = ( AWSSDK.getConnectionNoThrow() != null )
+                                        ? AWSSDK.getConnectionNoThrow()
+                                        : AWSSDK.getConnection( _verbose, AWSAccessKeyId, AWSSecretAccessKey );
+                return awssdk;
+            }
 
         } catch(FileNotFoundException fe) {
             if ( _verbose ) fe.printStackTrace(System.err);
@@ -511,7 +691,13 @@ public class AWSSDK {
      *  @throws Exception throws InvalidInputException, if input is not valid /or/ throws InvalidDomainNameException, if specified domain name is not valid.
      */
     public final String getHostedZoneId( final String _regionStr, final String _DNSHostedZoneName ) throws Exception {
-        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _DNSHostedZoneName +"): ";
+        final String HDR = CLASSNAME +"getHostedZoneId("+ _regionStr +","+ _DNSHostedZoneName +"): ";
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
+            return "__OFFLINE_MODE - AWS.SDK PROJECT - getHostedZoneId()";
+        }
+
         final AmazonRoute53 Rt53 = this.getAWSRoute53Hndl( _regionStr );
         final ListHostedZonesByNameRequest req = new ListHostedZonesByNameRequest().withDNSName( _DNSHostedZoneName +"." );
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listHostedZonesByName-com.amazonaws.services.route53.model.ListHostedZonesByNameRequest-
@@ -559,7 +745,7 @@ public class AWSSDK {
 
     public static void main(String[] args) {
         try {
-            final AWSSDK awssdk = AWSCmdline( true );
+            final AWSSDK awssdk = AWSCmdline( true, true );
             awssdk.getRegions( ).forEach( s -> System.out.println(s) );
             System.out.println("\n\n");
             awssdk.getAZs( args[0] ).forEach( s -> System.out.println(s) );

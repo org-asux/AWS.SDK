@@ -1,7 +1,7 @@
 #!/bin/tcsh -f
 
 ###------------------------------
-echo "Usage: $0 [--verbose]"
+echo "Usage: $0 [--verbose] [--offline]"
 # if ( $#argv <= 1 ) then
 #     echo "Usage: $0  [--verbose] --delete --yamlpath yaml.regexp.path $YAMLLIB --inputfile /tmp/input.yaml -o /tmp/output.yaml " >>& /dev/stderr
 #     echo Usage: $0 'org.ASUX.yaml.Cmd [--verbose] --delete --double-quote --yamlpath "paths.*.*.responses.200" $YAMLLIB --inputfile $cwd/src/test/my-petstore-micro.yaml -o /tmp/output2.yaml ' >>& /dev/stderr
@@ -25,7 +25,7 @@ if (  !   $?ORGASUXFLDR ) then
                 echo "ORGASUXFLDR=$ORGASUXFLDR"
         else
                 foreach FLDR ( ~/org.ASUX   ~/github/org.ASUX   ~/github.com/org.ASUX  /mnt/development/src/org.ASUX     /opt/org.ASUX  /tmp/org.ASUX  )
-                        set ORIGPATH=$path
+                        set ORIGPATH=( $path )
                         if ( -x "${FLDR}/asux" ) then
                                 set ORGASUXFLDR="$FLDR"
                                 set path=( $ORIGPATH "${ORGASUXFLDR}" )
@@ -46,10 +46,17 @@ set TESTSRCFLDR="${PROJECTPATH}/test"
 
 ###------------------------------
 if ( $#argv == 1 && "$1" == "--verbose" ) then
-        set VERBOSE="--verbose"
+        set VERBOSE="$1"
         shift
 else
         set VERBOSE=""
+endif
+
+if ( $#argv == 1 && "$1" == "--offline" ) then
+        set OFFLINE="$1"
+        shift
+else
+        set OFFLINE=""
 endif
 
 chdir ${TESTSRCFLDR}
@@ -64,8 +71,8 @@ endif
 echo -n "Sleep interval? >>"; set DELAY=$<
 if ( "$DELAY" == "" ) set DELAY=2
 
-set TEMPLATEFLDR=${TESTSRCFLDR}/outputs
-set OUTPUTFLDR=/tmp/test-output-${PROJECTNAME}
+set TEMPLATEFLDR=${TESTSRCFLDR}/outputs${OFFLINE}
+set OUTPUTFLDR=/tmp/test-output-${PROJECTNAME}${OFFLINE}
 
 ###------------------------------
 \rm -rf ${OUTPUTFLDR}
@@ -99,16 +106,16 @@ set TESTNUM=1
 # 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch ' aws.sdk --create-key-pair ap-south-1 testSSHKeyPair2 ' -i /dev/null \
-        -o ${OUTPFILE}
+asux ${VERBOSE} yaml batch ' aws.sdk --create-key-pair ap-south-1 testSSHKeyPair2 '${OFFLINE} -i /dev/null \
+        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 
 # 2
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null ' -i /dev/null \
-        -o ${OUTPFILE} >! ${OUTPFILE}.stdout
+asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null '${OFFLINE} -i /dev/null \
+        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
@@ -116,16 +123,16 @@ diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2' -i /dev/null \
-        -o ${OUTPFILE}
+asux ${VERBOSE} yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2 '${OFFLINE} -i /dev/null \
+        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 
 # 4
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem' -i /dev/null \
-        -o ${OUTPFILE} >! ${OUTPFILE}.stdout
+asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem '${OFFLINE} -i /dev/null \
+        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 

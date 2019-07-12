@@ -62,8 +62,11 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
     public static final String[] LISTKEYPAIR = { "lk", "describe-key-pairs", "show all keypair within a specified region, matching the provided-name of the keypair" };
 
+    protected static final String OFFLINE = "offline";
+
     //------------------------------------
     public Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
+    protected boolean offline = false;
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -75,7 +78,7 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public String toString() {
         return
         super.toString()
-        +" cmdType="+cmdType +" args=("+args+") "
+        +" cmdType="+cmdType +" args=("+args+")  offline="+this.offline
         ;
     }
 
@@ -88,6 +91,8 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         return this.cmdType;
     }
 
+    public boolean isOffline()          { return this.offline; }
+ 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //=================================================================================
@@ -106,6 +111,11 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         Options options = new Options();
 
         super.defineCommonOptions( options );
+
+        //----------------------------------
+        Option optOffline = new Option("zzz", OFFLINE, false, "whether internet is turned  off (or, you'd like to pretend there's no internet) " );
+        optOffline.setRequired(false);
+        options.addOption(optOffline);
 
         //----------------------------------
         OptionGroup grp = new OptionGroup();
@@ -181,6 +191,9 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
                 this.cmdType = Enums.SDKCommands.listKeyPairs;
             }
             assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
+
+            //-------------------------------------------
+            this.offline = ( cmd.hasOption(OFFLINE) );
 
         } catch (ParseException e) {
             e.printStackTrace(System.err); // Too Serious an Error.  We do NOT have the benefit of '--verbose',as this implies a FAILURE to parse command line.
