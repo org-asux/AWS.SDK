@@ -563,7 +563,7 @@ public class AWSSDK {
      *  @throws Exception com.amazonaws.services.ec2.model.AmazonEC2Exception gets thrown if any errors with AWS APIs.
      */
     public List<KeyPairInfo>  listKeyPairEC2( final String _regionStr, final String _MySSHKeyName ) throws Exception {
-        final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
+        final String HDR = CLASSNAME +"listKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         if ( this.offline ) {
             System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
             return new ArrayList<KeyPairInfo>();
