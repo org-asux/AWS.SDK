@@ -53,6 +53,8 @@ import static org.junit.Assert.*;
  */
 public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
 
+    private static final long serialVersionUID = 412L;
+
     public static final String CLASSNAME = CmdLineArgsAWS.class.getName();
 
     public static final String[] LISTREGIONS = { "lr", "list-regions", "list all the AWS regions" };
@@ -62,62 +64,20 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
     public static final String[] LISTKEYPAIR = { "lk", "describe-key-pairs", "show all keypair within a specified region, matching the provided-name of the keypair" };
 
-    protected static final String OFFLINE = "offline";
-
     //------------------------------------
     public Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
-    protected boolean offline = false;
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //=================================================================================
 
-    /** For making it easy to have simple code generate debugging-output, added this toString() method to this class.
+    /**
+     *  <p>Add cmd-line argument definitions (using apache.commons.cli.Options) for the instance-variables defined in this class.</p>
+     *  @param options a Non-Null instance of org.apache.commons.cli.Options
      */
     @Override
-    public String toString() {
-        return
-        super.toString()
-        +" cmdType="+cmdType +" args=("+args+")  offline="+this.offline
-        ;
-    }
-
-    //------------------------------------
-    /**
-     * This object reference is either to a CmdLineArgs class (for READ, LIST and DELETE commands), or subclasses of CmdLineArgs (for INSERT, REPLACE, TABLE, MACRO, BATCH commands)
-     * @return either an instance of CmdLineArgs or one of it's subclasses (depends on this.cmdType {@link #cmdType})
-     */
-    public Enums.SDKCommands getSpecificCmd() {
-        return this.cmdType;
-    }
-
-    public boolean isOffline()          { return this.offline; }
- 
-    //=================================================================================
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    //=================================================================================
-
-    /** Constructor.
-     *  @param args command line argument array - as received as-is from main().
-     *  @throws Exception like ClassNotFoundException while trying to serialize and deserialize the input-parameter
-     */
-    public CmdLineArgsAWS(String[] args) throws Exception
+    protected void defineAdditionalOptions()
     {
-        final String HDR = CLASSNAME + ": Constructor("+ args.length +"): ";
-        this.args.addAll( java.util.Arrays.asList(args) );
-        // if ( true ) { System.out.print( HDR +": ");  for( String s: args) System.out.print(s+"\t"); System.out.println(); }
-
-        //----------------------------------
-        Options options = new Options();
-
-        super.defineCommonOptions( options );
-
-        //----------------------------------
-        Option optOffline = new Option("zzz", OFFLINE, false, "whether internet is turned  off (or, you'd like to pretend there's no internet) " );
-        optOffline.setRequired(false);
-        options.addOption(optOffline);
-
-        //----------------------------------
         OptionGroup grp = new OptionGroup();
         Option listRegionsCmdOpt = new Option( LISTREGIONS[0], LISTREGIONS[1], false, LISTREGIONS[2] );
         Option listAZsCmdOpt = new Option( LISTAZS[0], LISTAZS[1], false, LISTAZS[2] );
@@ -149,58 +109,69 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         grp.addOption(listKeyPairCmdOpt);
         grp.setRequired(true);
 
-        options.addOptionGroup(grp);
+        this.options.addOptionGroup(grp);
+    }
 
-        //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        // temp variable, to help set a 'final' class variable
-        org.ASUX.yaml.CmdLineArgs cla = null;
+    //=================================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //=================================================================================
 
-        org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
-        org.apache.commons.cli.HelpFormatter formatter = new HelpFormatter();
-        // formatter.printOptions( new java.io.PrintWriter(System.out), 120, this.options, 0, 1);
-        formatter.setWidth(120);
-        org.apache.commons.cli.CommandLine cmd;
+    //=================================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //=================================================================================
 
-        try {
+    /**
+     *  @see org.ASUX.yaml.CmdLineArgsCommon#parseAdditionalOptions
+     */
+    @Override
+    protected void parseAdditionalOptions( String[] _args, final org.apache.commons.cli.CommandLine _apacheCmdProcessor )
+                    throws MissingOptionException, ParseException, Exception
+    {
+        final String HDR = CLASSNAME + ": parseCmdLineForNewOptions([]],..): ";
 
-            // if ( ???.verbose ) ..
-            // what if the parse() statement below has issues.. ?  We can't expect to use this.apacheCmd.hasOption("verbose") 
-// System.err.print( CLASSNAME +" parse(): _args = "+ args +"  >>>>>>>>>>>>> "); for( String s: args) System.out.print(s+"\t");  System.out.println();
-// System.err.println( CLASSNAME +" parse(): this = "+ this.toString() );
-            cmd = parser.parse( options, args, true ); //3rd param: boolean stopAtNonOption
-
-            super.parseCommonOptions( cmd );
-
-            //----------------------------------------------
-            if ( cmd.hasOption(LISTREGIONS[1]) ) {
-                this.cmdType = Enums.SDKCommands.listRegions;
-            }
-            if ( cmd.hasOption(LISTAZS[1]) ) {
-                this.cmdType = Enums.SDKCommands.listAZs;
-            }
-            if ( cmd.hasOption(DESCRIBEAZS[1]) ) {
-                this.cmdType = Enums.SDKCommands.describeAZs;
-            }
-            if ( cmd.hasOption(CREATEKEYPAIR[1]) ) {
-                this.cmdType = Enums.SDKCommands.createKeyPair;
-            }
-            if ( cmd.hasOption(DELETEKEYPAIR[1]) ) {
-                this.cmdType = Enums.SDKCommands.deleteKeyPair;
-            }
-            if ( cmd.hasOption(LISTKEYPAIR[1]) ) {
-                this.cmdType = Enums.SDKCommands.listKeyPairs;
-            }
-            assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
-
-            //-------------------------------------------
-            this.offline = ( cmd.hasOption(OFFLINE) );
-
-        } catch (ParseException e) {
-            e.printStackTrace(System.err); // Too Serious an Error.  We do NOT have the benefit of '--verbose',as this implies a FAILURE to parse command line.
-            formatter.printHelp( "\njava <jarL> "+CLASSNAME, options );
-            System.err.println( "\n\n"+ CLASSNAME +" parse(): failed to parse the command-line: "+ options );
-            throw e;
+        if ( _apacheCmdProcessor.hasOption(LISTREGIONS[1]) ) {
+            this.cmdType = Enums.SDKCommands.listRegions;
         }
+        if ( _apacheCmdProcessor.hasOption(LISTAZS[1]) ) {
+            this.cmdType = Enums.SDKCommands.listAZs;
+        }
+        if ( _apacheCmdProcessor.hasOption(DESCRIBEAZS[1]) ) {
+            this.cmdType = Enums.SDKCommands.describeAZs;
+        }
+        if ( _apacheCmdProcessor.hasOption(CREATEKEYPAIR[1]) ) {
+            this.cmdType = Enums.SDKCommands.createKeyPair;
+        }
+        if ( _apacheCmdProcessor.hasOption(DELETEKEYPAIR[1]) ) {
+            this.cmdType = Enums.SDKCommands.deleteKeyPair;
+        }
+        if ( _apacheCmdProcessor.hasOption(LISTKEYPAIR[1]) ) {
+            this.cmdType = Enums.SDKCommands.listKeyPairs;
+        }
+
+        assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
+    }
+
+    //=================================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //=================================================================================
+
+    /** For making it easy to have simple code generate debugging-output, added this toString() method to this class.
+     */
+    @Override
+    public String toString() {
+        return
+        super.toString()
+        +" cmdType="+cmdType
+        ;
+    }
+
+    //------------------------------------
+    /**
+     * This object reference is either to a CmdLineArgs class (for READ, LIST and DELETE commands), or subclasses of CmdLineArgs (for INSERT, REPLACE, TABLE, MACRO, BATCH commands)
+     * @return either an instance of CmdLineArgs or one of it's subclasses (depends on this.cmdType {@link #cmdType})
+     */
+    public Enums.SDKCommands getSpecificCmd() {
+        return this.cmdType;
     }
 
     //==============================================================================
@@ -221,9 +192,11 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         // if ( true ) { System.out.print( HDR +": ");  for( String s: args) System.out.print(s+"\t"); System.out.println(); }
 
         try {
-            cmdlineargs = new CmdLineArgsAWS( args );
+            cmdlineargs = new CmdLineArgsAWS();
+            cmdlineargs.define();
+            cmdlineargs.parse( args );
             // Until we get past the above statement, we don't know about 'verbose'
-            if (cmdlineargs.verbose) { System.out.print( HDR +" >>>>>>>>>>>>> "); for( String s: args) System.out.print(s);  System.out.println(); }
+            if (cmdlineargs.verbose) { System.out.print( HDR +" >>>>>>>>>>>>> "); for( String s: cmdlineargs.getArgs()) System.out.print(s);  System.out.println(); }
             if (cmdlineargs.verbose) System.out.println( HDR +" cmdlineargs=["+ cmdlineargs +"]" );
 
             return cmdlineargs;
