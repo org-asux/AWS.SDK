@@ -1,1 +1,1 @@
-org.ASUX.yaml.AWSSDKcreateKeyPairEC2(ap-northeast-1,Tokyo-org-ASUX-Playground-LinuxSSH.pem): AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!
+org.ASUX.yaml.AWSSDKlistKeyPairEC2(ap-northeast-1,Tokyo-org-ASUX-Playground-LinuxSSH.pem): AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!
