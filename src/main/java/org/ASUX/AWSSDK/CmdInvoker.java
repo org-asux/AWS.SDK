@@ -177,7 +177,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
         if ( this.dumperopt == null ) { // this won't be null, if this object was created within BatchCmdProcessor.java
             this.dumperopt = org.ASUX.YAML.NodeImpl.GenericYAMLWriter.defaultConfigurationForSnakeYamlWriter();
         }
-        switch( this.cmdlineargsaws.quoteType ) {
+        switch( this.cmdlineargsaws.getQuoteType() ) {
             case DOUBLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.DOUBLE_QUOTED );  break;
             case SINGLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.SINGLE_QUOTED );  break;
             case LITERAL:       dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.LITERAL );        break;
