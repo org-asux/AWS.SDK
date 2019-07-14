@@ -90,11 +90,15 @@ import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 
 import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+// !!!!!!! ATTENTION !!!!!!!! 'Tag' clashes with SnakeYaml's 'Tag';  So, cannot import this.
+// import com.amazonaws.services.ec2.model.Tag;         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
 // import com.amazonaws.services.ec2.model.Region;
 // import com.amazonaws.services.ec2.model.AvailabilityZone;
     // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/AvailabilityZone.html
 // import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 // import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
+import com.amazonaws.services.ec2.model.Vpc;
+import com.amazonaws.services.ec2.model.DescribeVpcsResult;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
@@ -285,6 +289,12 @@ public class AWSSDK {
     public static final String ORGASUXHOME      = System.getProperty("ORGASUXHOME");
     public static final String AWSHOME          = System.getProperty("AWSHOME");
     public static final String AWSCFNHOME       = System.getProperty("AWSCFNHOME");
+    public static final String getAWSCFNHOME() {
+        if ( AWSCFNHOME == null )
+            return ORGASUXHOME +"/AWS/CFN";
+        else
+            return AWSCFNHOME;
+    }
 
     //==============================================================================
     /**
@@ -341,8 +351,8 @@ public class AWSSDK {
         final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList< LinkedHashMap<String,Object> >();
         for( Node subN : seqs ) {
             assertTrue( subN instanceof MappingNode );
-            final org.ASUX.common.Output.Object<?> ooo = NodeTools.Node2Map( this.verbose, node );
-            assertTrue( ooo.getType() != org.ASUX.common.Output.OutputType.Type_LinkedHashMap );
+            final org.ASUX.common.Output.Object<?> ooo = NodeTools.Node2Map( this.verbose, subN );
+            assertTrue( ooo.getType() == org.ASUX.common.Output.OutputType.Type_LinkedHashMap );
             if ( this.verbose ) System.out.println( ooo.getMap() );
             retarr.add( ooo.getMap() );
         }
@@ -350,14 +360,69 @@ public class AWSSDK {
     }
 
     //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    public static final String REGION2LOCATIONMAPPING = getAWSCFNHOME()  +"/config/AWSRegionsLocations.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSREGIONSLOCATIONS );
+    private boolean bLocationLookupInitialized = false;
+    private Properties region2LocationLookupProps = new Properties();
+    /**
+     * Given a NotNull region-name, will convert it to human-friendly name.  Example: for 'ap-northeast-1' as argument, the return value is 'Tokyo' (initial-capital always)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @return If _regionStr is _NOT_ actual AWS region, you'll get null.  Otherwise, a NotNull string
+     *  @throws Exception any errors trying to load and parse the file at {@link #REGION2LOCATIONMAPPING}
+     */
+    private String getLocation( final String _regionStr ) throws Exception {
+        if ( bLocationLookupInitialized ) {
+            // do nothing.
+        } else {
+            final Properties AWSRegionLocations = org.ASUX.common.Utils.parseProperties( "@"+ REGION2LOCATIONMAPPING ); 
+            region2LocationLookupProps.putAll( AWSRegionLocations );
+        }
+        return region2LocationLookupProps.getProperty( "AWS-"+ _regionStr );
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
     /**
      *  An offline implementation (substituting for {@link #getRegions()}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
      *  @return a NotNull instance
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList<String> getRegions_Offline() throws Exception {
-        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWSRegions.yaml";
-        return convNode2ArrayList( readYamlFile( YAMLFile ) );
+        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWSRegions.yaml";
+        return this.convNode2ArrayList( this.readYamlFile( YAMLFile ) );
+    }
+
+    /**
+     *  <p>An offline implementation (substituting for {@link #getVPCID(String, boolean)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.</p>
+     *  <p>Get the single Default-VPC  - or - the 1st Non-Default VPC (based on the argument passed to this method)</p>
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
+     *  @return If no VPCs (imagine that! Not even a Default), you'll get null;  Otherwise. if argument is 'false' and No Non-default-VPCs, again a Null is returned. Otherwise, a NotNull string
+     *  @throws Exception thrown if any issues reading the cached YAML files.
+     */
+    public String getVPCID_Offline( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+        final ArrayList< LinkedHashMap<String,Object> > ret =  getVPCs_Offline( _regionStr, _onlyNonDefaultVPC );
+        if ( ret.size() <= 0 )
+            return null;
+        else
+            return (String) ret.get( 0 ).get( "ID" ); // could be null - by definition of get().
+    }
+
+    /**
+     *  <p>An offline implementation (substituting for {@link #getVPCs(String, boolean)} that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.</p>
+     *  Get the list of VPC-ID for _ALL_ the VPCs (incl. default)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files 
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getVPCs_Offline( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/VPCdetails"+ (_onlyNonDefaultVPC ? "-NotDefaults" : "-all" ) +"-"+ this.getLocation( _regionStr ) +".yaml";
+        return this.convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
     }
 
     //==============================================================================
@@ -368,8 +433,8 @@ public class AWSSDK {
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList<String> getAZs_Offline( final String _regionStr ) throws Exception {
-        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
-        return convNode2ArrayList( readYamlFile( YAMLFile ) );
+        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        return this.convNode2ArrayList( this.readYamlFile( YAMLFile ) );
     }
 
     /**
@@ -379,8 +444,8 @@ public class AWSSDK {
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList< LinkedHashMap<String,Object> > describeAZs_Offline( final String _regionStr ) throws Exception  {
-        final String YAMLFile = AWSCFNHOME +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
-        return convNode2ArrayOfMaps( readYamlFile( YAMLFile ) );
+        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        return convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
     }
 
     //==============================================================================
@@ -410,6 +475,67 @@ public class AWSSDK {
         return retarr;
     }
 
+    //==============================================================================
+
+    /**
+     *  Get the single Default-VPC  - or - the 1st Non-Default VPC (based on the argument passed to this method)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
+     *  @return If no VPCs (imagine that! Not even a Default), you'll get null;  Otherwise. if argument is 'false' and No Non-default-VPCs, again a Null is returned. Otherwise, a NotNull string
+     *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
+     */
+    public String getVPCID( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+        if ( this.offline ) return getVPCID_Offline( _regionStr, _onlyNonDefaultVPC );
+
+        for(LinkedHashMap<String,Object> vpc : this.getVPCs( _regionStr, _onlyNonDefaultVPC ) ) {
+            return (String) vpc.get( "ID" );
+        }
+        return null;
+    }
+
+    /**
+     *  Get the list of VPC-ID for _ALL_ the VPCs (incl. default)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getVPCs( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+        if ( this.offline ) return getVPCs_Offline( _regionStr, _onlyNonDefaultVPC );
+
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        final DescribeVpcsResult vpclist_response = ec2.describeVpcs();
+        final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList<>();
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Vpc.html
+        for(Vpc vpc : vpclist_response.getVpcs()) {
+            if ( this.verbose) System.out.printf( "Found VPC ID=%s with CIDRBlock=%s", vpc.getVpcId(), vpc.getCidrBlock() );
+            if ( vpc.isDefault() ) {
+                if ( this.verbose) System.out.println( " - is DEFAULT VPC" ); 
+                if ( _onlyNonDefaultVPC )
+                    continue; // skip the default VPCs if argument passed is true.
+            } else {
+                if ( this.verbose) System.out.println();
+            }
+            if ( this.verbose) System.out.println( vpc.toString() );
+            final LinkedHashMap<String,Object> ix = new LinkedHashMap<String,Object>();
+            // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Vpc.html
+            ix.put ( "isDefault", vpc.isDefault() );
+            ix.put ( "ID", vpc.getVpcId() );
+            ix.put ( "CIDRBlock", vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
+            // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
+            final List<com.amazonaws.services.ec2.model.Tag>	tags = vpc.getTags();
+            for ( com.amazonaws.services.ec2.model.Tag tag: tags ) {
+                ix.put( tag.getKey(), tag.getValue() );
+            }
+            retarr.add( ix );
+            // List<VpcCidrBlockAssociation>	getCidrBlockAssociationSet() // Information about the IPv4 CIDR-blocks (__MULTIPLE__) associated with the VPC.
+        }
+        return retarr;
+    }
+
+    //==============================================================================
+
     /**
      *  Pass in a region-name and get back ONLY THE AZ-NAMES in the output of the cmdline as JSON (cmdline being:- aws ec2 describe-availability-zones --region us-east-2 --profile ______ --output json)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
@@ -429,6 +555,8 @@ public class AWSSDK {
         }
         return retarr;
     }
+
+    //==============================================================================
 
     /**
      * Pass in a region-name and get back the output of the cmdline as JSON (cmdline being:- aws ec2 describe-availability-zones --region us-east-2 --profile ______ --output json)
