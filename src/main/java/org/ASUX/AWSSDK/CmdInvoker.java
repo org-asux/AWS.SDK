@@ -203,6 +203,20 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
             final SequenceNode seqNode = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, this.getDumperOptions() );
             return seqNode;
         //-------------------------------------------
+        case getVPCID:           // simplifies use of 'describeVPCs' - just to get VPCID (of the 1st (perhaps only) VPC)
+            if ( cmdLineArgsStrArr.size() < 2 )
+                throw new Exception( "AWS.SDK --get-vpc-id command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
+            final String vpcID = awssdk.getVPCID( cmdLineArgsStrArr.get(1), false ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+            final ScalarNode scalar = new ScalarNode( Tag.STR, vpcID, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            return scalar;
+        //-------------------------------------------
+        case describeVPCs:           // ( awscmdStr.equals("--describe-vpcs"))
+            if ( cmdLineArgsStrArr.size() < 2 )
+                throw new Exception( "AWS.SDK --describe-vpcs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
+            final ArrayList< LinkedHashMap<String,Object> > vpcList = awssdk.getVPCs( cmdLineArgsStrArr.get(1), false ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+            final SequenceNode seqNode5 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, vpcList, this.getDumperOptions() );
+            return seqNode5;
+        //-------------------------------------------
         case listAZs:           // ( awscmdStr.equals("--list-AZs"))
             if ( cmdLineArgsStrArr.size() < 2 )
                 throw new Exception( "AWS.SDK --list-AZs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
@@ -241,8 +255,8 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
                 System.err.println( "\n\n"+ HDR +"!!SERIOUS INTERNAL ERROR!! Why would the Path '"+ mySSHKeyFilePathStr +"' be invalid?\n\n" );
                 throw ipe;
             }
-            final ScalarNode scalar = new ScalarNode( Tag.STR, keyMaterial, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
-            return scalar;
+            final ScalarNode scalar2 = new ScalarNode( Tag.STR, keyMaterial, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            return scalar2;
         //-------------------------------------------
         case deleteKeyPair:     // ( awscmdStr.equals("--delete-keypair"))
             if ( cmdLineArgsStrArr.size() < 3 ) // aws.sdk --create-keypair AWSRegion MySSHKeyName
