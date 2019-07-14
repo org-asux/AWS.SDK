@@ -34,6 +34,7 @@ package org.ASUX.AWSSDK;
 
 import java.util.ArrayList;
 
+import org.ASUX.yaml.CmdLineArgsCommon;
 import org.apache.commons.cli.*;
 
 import static org.junit.Assert.*;
@@ -58,7 +59,9 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String CLASSNAME = CmdLineArgsAWS.class.getName();
 
     public static final String[] LISTREGIONS = { "lr", "list-regions", "list all the AWS regions" };
-    public static final String[] LISTAZS = { "lz", "list-AZs", "List all the AZs in a specified region" };
+    public static final String[] GETVPCID = { "vid", "get-vpc-id", "get the ID of the 1st/default VPC in a specified region" };
+    public static final String[] DESCRIBEVPCS = { "vpcs", "describe-vpcs", "describe all details (incl. tags) of ALL VPCs in a specified region" };
+    public static final String[] LISTAZS = { "laz", "list-AZs", "List all the AZs in a specified region" };
     public static final String[] DESCRIBEAZS = { "dz", "describe-AZs", "describe all the AZs in a specified region" };
     public static final String[] CREATEKEYPAIR = { "ck", "create-key-pair", "create a new keypair within a specified region, with the provided-name of the keypair" };
     public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
@@ -73,40 +76,32 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
 
     /**
      *  <p>Add cmd-line argument definitions (using apache.commons.cli.Options) for the instance-variables defined in this class.</p>
-     *  @param options a Non-Null instance of org.apache.commons.cli.Options
      */
     @Override
     protected void defineAdditionalOptions()
     {
         OptionGroup grp = new OptionGroup();
-        Option listRegionsCmdOpt = new Option( LISTREGIONS[0], LISTREGIONS[1], false, LISTREGIONS[2] );
-        Option listAZsCmdOpt = new Option( LISTAZS[0], LISTAZS[1], false, LISTAZS[2] );
-            listAZsCmdOpt.setArgs(1);
-            listAZsCmdOpt.setOptionalArg(false);
-            listAZsCmdOpt.setArgName("region");
-        Option descAZsCmdOpt = new Option( DESCRIBEAZS[0], DESCRIBEAZS[1], false, DESCRIBEAZS[2] );
-            descAZsCmdOpt.setArgs(1);
-            descAZsCmdOpt.setOptionalArg(false);
-            descAZsCmdOpt.setArgName("region");
-        Option createKeyPairCmdOpt = new Option( CREATEKEYPAIR[0], CREATEKEYPAIR[1], false, CREATEKEYPAIR[2] );
-            createKeyPairCmdOpt.setArgs(2);
-            createKeyPairCmdOpt.setOptionalArg(false);
-            createKeyPairCmdOpt.setArgName("region> <ExistingSSHKeyPair-Name");
-        Option delKeyPairCmdOpt = new Option( DELETEKEYPAIR[0], DELETEKEYPAIR[1], false, DELETEKEYPAIR[2] );
-            delKeyPairCmdOpt.setArgs(2);
-            delKeyPairCmdOpt.setOptionalArg(false);
-            delKeyPairCmdOpt.setArgName("region> <New-SSHKeyPair-Name");
-        Option listKeyPairCmdOpt = new Option( LISTKEYPAIR[0], LISTKEYPAIR[1], false, LISTKEYPAIR[2] );
-            listKeyPairCmdOpt.setArgs(2);
-            listKeyPairCmdOpt.setOptionalArg(false);
-            listKeyPairCmdOpt.setArgName("region> <New-SSHKeyPair-Name");
+        Option opt;
 
-        grp.addOption(listRegionsCmdOpt);
-        grp.addOption(listAZsCmdOpt);
-        grp.addOption(descAZsCmdOpt);
-        grp.addOption(createKeyPairCmdOpt);
-        grp.addOption(delKeyPairCmdOpt);
-        grp.addOption(listKeyPairCmdOpt);
+        opt = new Option( LISTREGIONS[0], LISTREGIONS[1], false, LISTREGIONS[2] );
+        grp.addOption( opt );
+
+        opt = CmdLineArgsCommon.genOption( GETVPCID[0], GETVPCID[1], GETVPCID[2], 1, "region" );
+        grp.addOption( opt );
+        opt = CmdLineArgsCommon.genOption( DESCRIBEVPCS[0], DESCRIBEVPCS[1], DESCRIBEVPCS[2], 1, "region" );
+        grp.addOption( opt );
+
+        opt = CmdLineArgsCommon.genOption( LISTAZS[0], LISTAZS[1], LISTAZS[2], 1, "region" );
+        grp.addOption( opt );
+        opt = CmdLineArgsCommon.genOption( DESCRIBEAZS[0], DESCRIBEAZS[1], DESCRIBEAZS[2], 1, "region" );
+        grp.addOption( opt );
+        opt = CmdLineArgsCommon.genOption( CREATEKEYPAIR[0], CREATEKEYPAIR[1], CREATEKEYPAIR[2], 1, "region> <New-SSHKeyPair-Name" );
+        grp.addOption( opt );
+        opt = CmdLineArgsCommon.genOption( DELETEKEYPAIR[0], DELETEKEYPAIR[1], DELETEKEYPAIR[2], 1, "region> <ExistingSSHKeyPair-Name" );
+        grp.addOption( opt );
+        opt = CmdLineArgsCommon.genOption( LISTKEYPAIR[0], LISTKEYPAIR[1], LISTKEYPAIR[2], 1, "region> <ExistingSSHKeyPair-Name" );
+        grp.addOption( opt );
+
         grp.setRequired(true);
 
         this.options.addOptionGroup(grp);
@@ -131,6 +126,12 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
 
         if ( _apacheCmdProcessor.hasOption(LISTREGIONS[1]) ) {
             this.cmdType = Enums.SDKCommands.listRegions;
+        }
+        if ( _apacheCmdProcessor.hasOption(GETVPCID[1]) ) {
+            this.cmdType = Enums.SDKCommands.getVPCID;
+        }
+        if ( _apacheCmdProcessor.hasOption(DESCRIBEVPCS[1]) ) {
+            this.cmdType = Enums.SDKCommands.describeVPCs;
         }
         if ( _apacheCmdProcessor.hasOption(LISTAZS[1]) ) {
             this.cmdType = Enums.SDKCommands.listAZs;
