@@ -45,6 +45,8 @@ public final class Enums
 
     public enum SDKCommands {
         listRegions ("list-regions"),
+        getVPCID ("get-vpc-id"),
+        describeVPCs ("describe-vpcs"),
         listAZs ("list-AZs"),
         describeAZs ("describe-AZs"),
         createKeyPair ("create-key-pair"),
