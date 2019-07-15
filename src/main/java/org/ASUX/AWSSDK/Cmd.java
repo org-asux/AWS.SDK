@@ -89,8 +89,8 @@ public class Cmd {
 
             final org.ASUX.YAML.NodeImpl.GenericYAMLWriter writer = new org.ASUX.YAML.NodeImpl.GenericYAMLWriter( cmdlineargs.verbose );
             final DumperOptions dumperopts = cmdinvoker.getDumperOptions();
-            // if (cmdlineargs.verbose) System.out.println( HDR +" GenericYAMLWriter writer has YAML-Library set to [" + writer.getYamlLibrary() + "]" );
-            org.ASUX.YAML.NodeImpl.NodeTools.printDumperOptions( dumperopts );
+            if (cmdlineargs.verbose) System.out.println( HDR +" GenericYAMLWriter writer has YAML-Library set to [" + writer.getYamlLibrary() + "]" );
+            if (cmdlineargs.verbose) org.ASUX.YAML.NodeImpl.NodeTools.printDumperOptions( dumperopts );
 
             writer.prepare( javawriter, dumperopts );
             writer.write( output, dumperopts );
