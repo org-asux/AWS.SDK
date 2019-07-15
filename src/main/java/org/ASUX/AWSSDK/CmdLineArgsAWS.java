@@ -68,7 +68,10 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String[] LISTKEYPAIR = { "lk", "describe-key-pairs", "show all keypair within a specified region, matching the provided-name of the keypair" };
 
     //------------------------------------
-    public Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
+    private Enums.SDKCommands cmdType = Enums.SDKCommands.Undefined;
+    private String AWSRegion = "uninitialized-AWSRegion";
+    private String SubParameter1 = "uninitialized-SubParameter1"; // Theoretically, we can have commands that do NOT have AWSRegion as SubParameter1
+    private String SubParameter2 = "uninitialized-SubParameter2";
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -95,11 +98,11 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         grp.addOption( opt );
         opt = CmdLineArgsCommon.genOption( DESCRIBEAZS[0], DESCRIBEAZS[1], DESCRIBEAZS[2], 1, "region" );
         grp.addOption( opt );
-        opt = CmdLineArgsCommon.genOption( CREATEKEYPAIR[0], CREATEKEYPAIR[1], CREATEKEYPAIR[2], 1, "region> <New-SSHKeyPair-Name" );
+        opt = CmdLineArgsCommon.genOption( CREATEKEYPAIR[0], CREATEKEYPAIR[1], CREATEKEYPAIR[2], 2, "region> <New-SSHKeyPair-Name" );
         grp.addOption( opt );
-        opt = CmdLineArgsCommon.genOption( DELETEKEYPAIR[0], DELETEKEYPAIR[1], DELETEKEYPAIR[2], 1, "region> <ExistingSSHKeyPair-Name" );
+        opt = CmdLineArgsCommon.genOption( DELETEKEYPAIR[0], DELETEKEYPAIR[1], DELETEKEYPAIR[2], 2, "region> <ExistingSSHKeyPair-Name" );
         grp.addOption( opt );
-        opt = CmdLineArgsCommon.genOption( LISTKEYPAIR[0], LISTKEYPAIR[1], LISTKEYPAIR[2], 1, "region> <ExistingSSHKeyPair-Name" );
+        opt = CmdLineArgsCommon.genOption( LISTKEYPAIR[0], LISTKEYPAIR[1], LISTKEYPAIR[2], 2, "region> <ExistingSSHKeyPair-Name" );
         grp.addOption( opt );
 
         grp.setRequired(true);
@@ -129,24 +132,43 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         }
         if ( _apacheCmdProcessor.hasOption(GETVPCID[1]) ) {
             this.cmdType = Enums.SDKCommands.getVPCID;
+            this.AWSRegion = _apacheCmdProcessor.getOptionValue( GETVPCID[1] );
         }
         if ( _apacheCmdProcessor.hasOption(DESCRIBEVPCS[1]) ) {
             this.cmdType = Enums.SDKCommands.describeVPCs;
+            this.AWSRegion = _apacheCmdProcessor.getOptionValue( DESCRIBEVPCS[1] );
         }
         if ( _apacheCmdProcessor.hasOption(LISTAZS[1]) ) {
             this.cmdType = Enums.SDKCommands.listAZs;
+            this.AWSRegion = _apacheCmdProcessor.getOptionValue( LISTAZS[1] );
         }
         if ( _apacheCmdProcessor.hasOption(DESCRIBEAZS[1]) ) {
             this.cmdType = Enums.SDKCommands.describeAZs;
+            this.AWSRegion = _apacheCmdProcessor.getOptionValue( DESCRIBEAZS[1] );
         }
         if ( _apacheCmdProcessor.hasOption(CREATEKEYPAIR[1]) ) {
             this.cmdType = Enums.SDKCommands.createKeyPair;
+            final String[] subParams = _apacheCmdProcessor.getOptionValues( CREATEKEYPAIR[1] ); // CmdLineArgsBasic.INSERTCMD[1] );
+            // because we set .setArgs(2) in define().. you can get the values for:- subParams[0] and subParams[1].
+            this.AWSRegion = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter1 = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter2 = subParams[1];
         }
         if ( _apacheCmdProcessor.hasOption(DELETEKEYPAIR[1]) ) {
             this.cmdType = Enums.SDKCommands.deleteKeyPair;
+            final String[] subParams = _apacheCmdProcessor.getOptionValues( DELETEKEYPAIR[1] ); // CmdLineArgsBasic.INSERTCMD[1] );
+            // because we set .setArgs(2) in define().. you can get the values for:- subParams[0] and subParams[1].
+            this.AWSRegion = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter1 = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter2 = subParams[1];
         }
         if ( _apacheCmdProcessor.hasOption(LISTKEYPAIR[1]) ) {
             this.cmdType = Enums.SDKCommands.listKeyPairs;
+            final String[] subParams = _apacheCmdProcessor.getOptionValues( LISTKEYPAIR[1] ); // CmdLineArgsBasic.INSERTCMD[1] );
+            // because we set .setArgs(2) in define().. you can get the values for:- subParams[0] and subParams[1].
+            this.AWSRegion = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter1 = subParams[0]; // 1st of the 2 arguments for INSERT cmd.
+            this.SubParameter2 = subParams[1];
         }
 
         assertTrue( this.cmdType != Enums.SDKCommands.Undefined );
@@ -162,18 +184,14 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public String toString() {
         return
         super.toString()
-        +" cmdType="+cmdType
+        +" cmdType="+cmdType +" AWSRegion="+ this.AWSRegion +" SubParameter1="+ this.SubParameter1 +" SubParameter2="+ this.SubParameter2
         ;
     }
 
-    //------------------------------------
-    /**
-     * This object reference is either to a CmdLineArgs class (for READ, LIST and DELETE commands), or subclasses of CmdLineArgs (for INSERT, REPLACE, TABLE, MACRO, BATCH commands)
-     * @return either an instance of CmdLineArgs or one of it's subclasses (depends on this.cmdType {@link #cmdType})
-     */
-    public Enums.SDKCommands getSpecificCmd() {
-        return this.cmdType;
-    }
+    public Enums.SDKCommands getCmdType()   { return this.cmdType; }
+    public String getAWSRegion()            { return this.AWSRegion; }
+    public String getSubParameter1()        { return this.SubParameter1; }
+    public String getSubParameter2()        { return this.SubParameter2; }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
