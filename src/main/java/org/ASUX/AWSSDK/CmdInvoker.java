@@ -173,6 +173,9 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
         this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
         final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose, this.cmdlineargsaws.isOffline() );
 
+        if (this.verbose) System.out.println( HDR +" cmdLineArgsStrArr has "+ this.cmdlineargsaws.getArgs().size() +" containing =["+ this.cmdlineargsaws.getArgs() +"]" );
+        // the CmdLineArgsAWS class should take care of validating the # of cmd-line arguments and the type
+
         //=======================================
         if ( this.dumperopt == null ) { // this won't be null, if this object was created within BatchCmdProcessor.java
             this.dumperopt = org.ASUX.YAML.NodeImpl.GenericYAMLWriter.defaultConfigurationForSnakeYamlWriter();
@@ -186,57 +189,38 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
             default:            dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.FOLDED );         break;
         }
 
-        //=======================================
-        final ArrayList<String> cmdLineArgsStrArr = this.cmdlineargsaws.getArgs();
-        if (this.verbose) System.out.println( HDR +" cmdLineArgsStrArr has "+ cmdLineArgsStrArr.size() +" containing =["+ cmdLineArgsStrArr +"]" );
-        assertTrue( cmdLineArgsStrArr.size() >= 1 );
-        // the CmdLineArgsAWS class should take care of validating the # of cmd-line arguments and the type
-
-        // skip the index[0] (in cmdLineArgsStrArr)  which must be 'AWS.SDK' (for this class to be invoked)
-        final String awscmdStr = cmdLineArgsStrArr.get(0);
-        if (this.verbose) System.out.println( HDR +" awscmdStr =["+ awscmdStr +"]" );
-
         //-------------------------------------------
-        switch( this.cmdlineargsaws.cmdType ) {
-        case listRegions:       // ( awscmdStr.equals("--list-regions"))
+        switch( this.cmdlineargsaws.getCmdType() ) {
+        case listRegions:       // "--list-regions"
             final ArrayList<String> regionsList = awssdk.getRegions( );
             final SequenceNode seqNode = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, this.getDumperOptions() );
             return seqNode;
         //-------------------------------------------
         case getVPCID:           // simplifies use of 'describeVPCs' - just to get VPCID (of the 1st (perhaps only) VPC)
-            if ( cmdLineArgsStrArr.size() < 2 )
-                throw new Exception( "AWS.SDK --get-vpc-id command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final String vpcID = awssdk.getVPCID( cmdLineArgsStrArr.get(1), false ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+            final String vpcID = awssdk.getVPCID( this.cmdlineargsaws.getAWSRegion(), false );
             final ScalarNode scalar = new ScalarNode( Tag.STR, vpcID, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
             return scalar;
         //-------------------------------------------
-        case describeVPCs:           // ( awscmdStr.equals("--describe-vpcs"))
-            if ( cmdLineArgsStrArr.size() < 2 )
-                throw new Exception( "AWS.SDK --describe-vpcs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final ArrayList< LinkedHashMap<String,Object> > vpcList = awssdk.getVPCs( cmdLineArgsStrArr.get(1), false ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+        case describeVPCs:           // "--describe-vpcs"
+            final ArrayList< LinkedHashMap<String,Object> > vpcList = awssdk.getVPCs( this.cmdlineargsaws.getAWSRegion(), false );
             final SequenceNode seqNode5 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, vpcList, this.getDumperOptions() );
             return seqNode5;
         //-------------------------------------------
-        case listAZs:           // ( awscmdStr.equals("--list-AZs"))
-            if ( cmdLineArgsStrArr.size() < 2 )
-                throw new Exception( "AWS.SDK --list-AZs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final ArrayList<String> AZList = awssdk.getAZs( cmdLineArgsStrArr.get(1) ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+        case listAZs:           // "--list-AZs"
+            final ArrayList<String> AZList = awssdk.getAZs( this.cmdlineargsaws.getAWSRegion() );
             final SequenceNode seqNode2 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.getDumperOptions() );
             return seqNode2;
         //-------------------------------------------
-        case describeAZs:       // ( awscmdStr.equals("--describe-AZs"))
-            if ( cmdLineArgsStrArr.size() < 2 )
-                throw new Exception( "AWS.SDK --describe-AZs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final ArrayList< LinkedHashMap<String,Object> > AZDetailsList = awssdk.describeAZs( cmdLineArgsStrArr.get(1) ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+        case describeAZs:       // "--describe-AZs"
+            final ArrayList< LinkedHashMap<String,Object> > AZDetailsList = awssdk.describeAZs( this.cmdlineargsaws.getAWSRegion() );
             final SequenceNode seqNode3 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZDetailsList, this.getDumperOptions() );
             return seqNode3;
         //-------------------------------------------
-        case createKeyPair:     // ( awscmdStr.equals("--create-keypair"))
-            if ( cmdLineArgsStrArr.size() < 3 ) // aws.sdk --create-keypair AWSRegion MySSHKeyName
-                throw new Exception( "AWS.SDK --create-key-pair command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final String AWSRegion = cmdLineArgsStrArr.get(1);
-            final String mySSHKeyName = cmdLineArgsStrArr.get(2);
-            final String keyMaterial = awssdk.createKeyPairEC2( AWSRegion, mySSHKeyName ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+        case createKeyPair:     // "--create-keypair"
+            final String AWSRegion = this.cmdlineargsaws.getAWSRegion();
+            final String mySSHKeyName = this.cmdlineargsaws.getSubParameter2();
+            final String keyMaterial = awssdk.createKeyPairEC2( AWSRegion, mySSHKeyName );
+
             //------------------
             final String homedir = System.getProperty("user.home");
             assertTrue( homedir != null );
@@ -258,23 +242,19 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
             final ScalarNode scalar2 = new ScalarNode( Tag.STR, keyMaterial, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
             return scalar2;
         //-------------------------------------------
-        case deleteKeyPair:     // ( awscmdStr.equals("--delete-keypair"))
-            if ( cmdLineArgsStrArr.size() < 3 ) // aws.sdk --create-keypair AWSRegion MySSHKeyName
-                throw new Exception( "AWS.SDK --delete-key-pair command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final String AWSRegion2 = cmdLineArgsStrArr.get(1);
-            final String mySSHKeyName2 = cmdLineArgsStrArr.get(2);
-            awssdk.deleteKeyPairEC2( AWSRegion2, mySSHKeyName2 ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+        case deleteKeyPair:     // "--delete-keypair"
+            final String AWSRegion2 = this.cmdlineargsaws.getAWSRegion();
+            final String mySSHKeyName2 = this.cmdlineargsaws.getSubParameter2();
+            awssdk.deleteKeyPairEC2( AWSRegion2, mySSHKeyName2 );
             final Node n = NodeTools.getEmptyYAML( this.getDumperOptions() );
             return n;
         //-------------------------------------------
-        case listKeyPairs:     // ( awscmdStr.equals("--delete-keypair"))
-            if ( cmdLineArgsStrArr.size() < 3 ) // aws.sdk --create-keypair AWSRegion MySSHKeyName
-                throw new Exception( "AWS.SDK --describe-key-pairs command: INSUFFICIENT # of parameters ["+ cmdLineArgsStrArr +"]" );
-            final String AWSRegion3 = cmdLineArgsStrArr.get(1);
-            String mySSHKeyName3 = cmdLineArgsStrArr.get(2);
+        case listKeyPairs:     // "--delete-keypair"
+            final String AWSRegion3 = this.cmdlineargsaws.getAWSRegion();
+            String mySSHKeyName3 = this.cmdlineargsaws.getSubParameter2();
             if ( mySSHKeyName3 == null || "null".equals( mySSHKeyName3 ) || mySSHKeyName3.trim().length() <= 0 )
                 mySSHKeyName3 = null;
-            final List<com.amazonaws.services.ec2.model.KeyPairInfo> keys = awssdk.listKeyPairEC2( AWSRegion3, mySSHKeyName3 ); // ATTENTION: Pay attention to index# of cmdLineArgsStrArr
+            final List<com.amazonaws.services.ec2.model.KeyPairInfo> keys = awssdk.listKeyPairEC2( AWSRegion3, mySSHKeyName3 );
             final java.util.LinkedList<Node> seqs = new java.util.LinkedList<Node>();
             final SequenceNode seqNode4 = new SequenceNode( Tag.SEQ, false,     seqs,         null, null, this.getDumperOptions().getDefaultFlowStyle() );
             for ( com.amazonaws.services.ec2.model.KeyPairInfo x: keys ) {
@@ -292,7 +272,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
         //-------------------------------------------
         case Undefined:         // 
         default:
-            throw new Exception( "AWS.SDK INTERNAL-ERROR: Unknown command ["+ cmdLineArgsStrArr +"]" );
+            throw new Exception( "AWS.SDK INTERNAL-ERROR: Unknown command ["+ this.cmdlineargsaws.getArgs() +"]" );
         }
 
         //----------------------------------------
