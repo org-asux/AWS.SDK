@@ -1,2 +1,4 @@
 org.ASUX.yaml.AWSSDKcreateKeyPairEC2(ap-south-1,testSSHKeyPair2): AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!
 File /Users/Sarma/.aws/testSSHKeyPair2 created.
+__OFFLINE_MODE - AWS.SDK PROJECT - createKeyPairEC2()
+
