@@ -25,6 +25,8 @@ endif
 ###------------------------------
 source ${ORGASUXFLDR}/test/testAll-common.csh-source
 
+echo OFFLINE=${OFFLINE}
+
 ###------------------------------
 set PROJECTNAME=AWS-SDK
 set PROJECTPATH="${ORGASUXFLDR}/AWS/${PROJECTNAME}"
@@ -46,34 +48,28 @@ set TESTNUM=0
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch ' aws.sdk --create-key-pair ap-south-1 testSSHKeyPair2 '${OFFLINE} -i /dev/null \
-        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
-diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+asux ${VERBOSE} ${OFFLINE} aws.sdk create-key-pair ap-south-1 testSSHKeyPair2 --no-quote >&! ${OUTPFILE}.stdout
+diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 # 2
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 null '${OFFLINE} -i /dev/null \
-        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
-diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+asux ${VERBOSE} ${OFFLINE} aws.sdk describe-key-pairs ap-northeast-1 null --no-quote >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 # 3
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --delete-key-pair ap-south-1 testSSHKeyPair2 '${OFFLINE} -i /dev/null \
-        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
-diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+asux ${VERBOSE} ${OFFLINE} aws sdk delete-key-pair ap-south-1 testSSHKeyPair2 --no-quote  >&! ${OUTPFILE}.stdout
+diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 # 4
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} yaml batch 'aws.sdk --describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem '${OFFLINE} -i /dev/null \
-        -o ${OUTPFILE} >&! ${OUTPFILE}.stdout
-diff ${OUTPFILE} ${TEMPLATEFLDR}/test-${TESTNUM}
+asux ${VERBOSE} ${OFFLINE} aws sdk describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem --no-quote  >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 ###---------------------------------
