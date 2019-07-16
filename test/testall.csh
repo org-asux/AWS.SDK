@@ -72,6 +72,13 @@ echo $OUTPFILE
 asux ${VERBOSE} ${OFFLINE} aws sdk describe-key-pairs ap-northeast-1 Tokyo-org-ASUX-Playground-LinuxSSH.pem --no-quote  >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
+# 5
+@ TESTNUM = $TESTNUM + 1
+set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
+echo $OUTPFILE
+asux ${VERBOSE} ${OFFLINE} aws.sdk get-vpc-id ap-northeast-1 --no-quote  >&! ${OUTPFILE}.stdout
+diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
+
 ###---------------------------------
 
 # @ TESTNUM = $TESTNUM + 1
