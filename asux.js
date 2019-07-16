@@ -18,7 +18,7 @@ if ( ! process.env.ORGASUXHOME ) {
 eval( fs.readFileSync( process.env.ORGASUXHOME +'/bin/asux-common.js' ) + '' );
 
 //==========================================================
-var CMDGRP="aws.sdk"; // this entire file is about this CMDGRP.   !!! This value is needed within processJavaCmd() - that function is defined within ${ORGASUXFLDR}/bin/asux-common.js
+var CMDGRP="aws.sdk"; // this entire file is about this CMDGRP.   !!! This value is needed within processAWSSDKCmd()/processJavaCmd() - that function is defined within ${ORGASUXFLDR}/bin/asux-common.js
 var COMMAND = "unknown"; // will be set based on what the user enters on the commandline.
 
 //==========================================================
@@ -67,37 +67,37 @@ CmdLine.on('option:offline', function () {
 
 CmdLine.on('command:get-vpc-id', function () {
 	COMMAND="get-vpc-id";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 CmdLine.on('command:describe-vpcs', function () {
 	COMMAND="describe-vpcs";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 
 CmdLine.on('command:list-regions', function () {
 	COMMAND="list-regions";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 CmdLine.on('command:list-AZs', function () {
 	COMMAND="list-AZs";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 CmdLine.on('command:describe-AZs', function () {
 	COMMAND="describe-AZs";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 
 CmdLine.on('command:create-key-pair', function () {
 	COMMAND="create-key-pair";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 CmdLine.on('command:delete-key-pair', function () {
 	COMMAND="delete-key-pair";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 CmdLine.on('command:describe-key-pairs', function () {
 	COMMAND="describe-key-pairs";
-	processJavaCmd( COMMAND );
+	processAWSSDKCmd( COMMAND );
 });
 
 // Like the 'default' in a switch statement.. .. After all of the above "on" callbacks **FAIL** to trigger, we'll end up here.
@@ -110,6 +110,63 @@ CmdLine.on('command:*', function () {
 
 //==========================
 CmdLine.parse(process.argv);
+
+//============================================================
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+//============================================================
+
+function processAWSSDKCmd( _CMD) {
+
+	if (process.env.VERBOSE) console.log( "Environment variables (As-Is): AWSHOME=" + process.env.AWSHOME +", AWSCFNHOME=" + process.env.AWSCFNHOME +"\n" );
+
+	// Following 15 lines are Common with {ORGASUXFLDR}/AWS/CFN/asux.js
+	// whether or not process.env.AWSHOME is already set already.. reset it based on the location of this file (./asux.js)
+	  // if ( !  process.env.AWSHOME ) {
+		var parentDir = ""+__dirname;
+		parentDirArr = parentDir.split(PATH.sep);
+		parentDirArr.pop();
+		if (process.env.VERBOSE) console.log( "REGULAR variable: parentDirArr='" + parentDirArr.join('/') +"'." );
+		const afolder = ""+parentDirArr.join('/'); // for use by all scripts under process.env.ORGASUXHOME/AWS/CFN .. so it know where this asux.js is.
+		if ( (afolder != process.env.AWSHOME) && EXECUTESHELLCMD.checkIfExists( process.env.AWSHOME ) ) {
+			console.error( __filename +"\nThe parent-folder "+ afolder + " that contains this asux.js script conflicts with the Environment-variable AWSHOME="+ process.env.AWSHOME +".  Please unset the environment variable AWSHOME or remove the folder "+ afolder );
+			process.exitCode = 9;
+			return;
+		}
+		process.env.AWSHOME = afolder;
+	  // } // if
+
+	// Unlike the above 15 lines, the following is copied from {ORGASUXFLDR}/cmdline/asux.js
+    // whether or not process.env.AWSCFNHOME is already set already.. reset it based on the location of this file (./asux.js)
+    const afolder2=process.env.AWSHOME +"/CFN";
+    if ( EXECUTESHELLCMD.checkIfExists( afolder2 ) ) {
+        if ( (afolder2 != process.env.AWSCFNHOME) && EXECUTESHELLCMD.checkIfExists( process.env.AWSCFNHOME ) ) {
+			console.error( __filename +"\nThe default folder "+ afolder2 + " that contains this asux.js script conflicts with the Environment-variable AWSCFNHOME="+ process.env.AWSCFNHOME +".  Please unset the environment variable AWSCFNHOME or remove the folder "+ afolder2 );
+			process.exitCode = 9;
+			return;
+        } else {
+          // Ok.  Environment variable process.env.AWSCFNHOME is invalid/not-set.  I'm ok either way.
+			process.env.AWSCFNHOME = afolder2;
+        }
+    } else {
+        // hmmm... someone is fucking around with the folder-structure that 'install' created.
+        // The default folder (represented by 'afolder2') is missing!!!
+        // perhaps they know how to (figuratively speaking) know how to pop-up open the hood and customize the car thoroughly!
+        if ( checkIfExists( process.env.AWSCFNHOME ) ) {
+            // all good;  Proceed further.
+            // !!!!!! Attention.  Actually, it turns out.. the rest of the asux.js code will NOW _INITIATE_ a git-pull for this project. LOL!
+            // That means the user's attempt to "move" AWSCFNHOME will be completely INEFFECTIVE ;-)  Ha!
+        } else {
+            console.error( __filename +"\nThe default folder "+ afolder2 + " does Not exist.  EITHER set the environment variable 'AWSCFNHOME' .. or, re-install the entire ASUX.org project from scratch." );
+            process.exitCode = 9;
+            return;
+        }
+    }
+
+	if (process.env.VERBOSE) console.log( "Environment variables (final): AWSHOME=" + process.env.AWSHOME +", AWSCFNHOME=" + process.env.AWSCFNHOME +"\n" );
+
+	processJavaCmd( _CMD );
+
+} // end function processCFNCmd
 
 //============================================================
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
