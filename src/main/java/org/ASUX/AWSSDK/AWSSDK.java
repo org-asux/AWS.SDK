@@ -286,14 +286,42 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
+    /** = System.getProperty("ORGASUXHOME"); */
     public static final String ORGASUXHOME      = System.getProperty("ORGASUXHOME");
+
+    /** = System.getProperty("AWSHOME"); */
     public static final String AWSHOME          = System.getProperty("AWSHOME");
-    public static final String AWSCFNHOME       = System.getProperty("AWSCFNHOME");
-    public static final String getAWSCFNHOME() {
-        if ( AWSCFNHOME == null )
-            return ORGASUXHOME +"/AWS/CFN";
-        else
-            return AWSCFNHOME;
+    // public static final String AWS C FN HOME       = System.getProperty("AWS C FN HOME");  // if you need this, we will end up with circular dependencies between org.ASUX.AWS-SDK and org.ASUX.AWS.CFN projects,
+
+    //--------------------
+    private static boolean  bNeverRan_getAWSHOME = true;
+    /**
+     *  If the folder represeted by the returned value does Not exist, you'll get a __RUNTIME__ exception (org.junit.Assert.AssertionError)
+     *  @return a NotNull path like ~/github.com/org.ASUX/AWS (assuming your installed org.ASUX project at ~/github.com/org.ASUX);  Note: this will never be Null.
+     */
+    public static final String getAWSHOME() {
+        final String awshome = ( AWSHOME == null ) ?  ORGASUXHOME +"/AWS" : AWSHOME;
+        if ( AWSSDK.bNeverRan_getAWSHOME ) {
+            final File fObj = new File( awshome );
+            assertTrue( fObj.exists() && fObj.canRead() );
+            AWSSDK.bNeverRan_getAWSHOME = false;
+        }
+        return awshome;
+    }
+
+    private static boolean  bNeverRan_getOfflineFolderPath = true;
+    /**
+     *  If the folder represeted by the returned value does Not exist, you'll get a __RUNTIME__ exception (org.junit.Assert.AssertionError)
+     *  @return a NotNull path like <code>~/org.ASUX/AWS/etc/offline-downloads</code> (assuming you installed org.ASUX project at <code>~/org.ASUX</code>);  Note: this will never be Null.
+     */
+    public static final String getOfflineFolderPath() {
+        final String offlinefldr = getAWSHOME() + "/etc/offline-downloads";
+        if ( AWSSDK.bNeverRan_getOfflineFolderPath ) {
+            final File fObj = new File( offlinefldr );
+            assertTrue( fObj.exists() && fObj.canRead() );
+            AWSSDK.bNeverRan_getOfflineFolderPath = false;
+        }
+        return offlinefldr;
     }
 
     //==============================================================================
@@ -363,23 +391,45 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
-    public static final String REGION2LOCATIONMAPPING = getAWSCFNHOME()  +"/config/AWSRegionsLocations.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSREGIONSLOCATIONS );
-    private boolean bLocationLookupInitialized = false;
+    public static final String REGION2LOCATIONMAPPING = getAWSHOME()  +"/config/AWSRegionsLocations.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSREGIONSLOCATIONS );
+    public static final String LOCATION2REGIONMAPPING = getAWSHOME()  +"/config/AWSLocationsRegions.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSLOCATIONSREGIONS );
+
+    private boolean bNeverRan_RegionLookup = true;
+    private boolean bNeverRan_LocationLookup = true;
+
     private Properties region2LocationLookupProps = new Properties();
+    private Properties location2RegionLookupProps = new Properties();
+
+    //------------------------
     /**
-     * Given a NotNull region-name, will convert it to human-friendly name.  Example: for 'ap-northeast-1' as argument, the return value is 'Tokyo' (initial-capital always)
+     *  Given a NotNull region-name, will convert it to human-friendly name.  Example: for 'ap-northeast-1' as argument, the return value is 'Tokyo' (initial-capital always)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
      *  @return If _regionStr is _NOT_ actual AWS region, you'll get null.  Otherwise, a NotNull string
      *  @throws Exception any errors trying to load and parse the file at {@link #REGION2LOCATIONMAPPING}
      */
     private String getLocation( final String _regionStr ) throws Exception {
-        if ( bLocationLookupInitialized ) {
-            // do nothing.
-        } else {
-            final Properties AWSRegionLocations = org.ASUX.common.Utils.parseProperties( "@"+ REGION2LOCATIONMAPPING ); 
-            region2LocationLookupProps.putAll( AWSRegionLocations );
+        if ( bNeverRan_LocationLookup ) {
+            final Properties AWSRegions2Locations = org.ASUX.common.Utils.parseProperties( "@"+ REGION2LOCATIONMAPPING ); 
+            region2LocationLookupProps.putAll( AWSRegions2Locations );
+            bNeverRan_LocationLookup = false;
         }
         return region2LocationLookupProps.getProperty( "AWS-"+ _regionStr );
+    }
+
+    //------------------------
+    /**
+     *  Given a NotNull region-name, will convert it to human-friendly name.  Example: for 'ap-northeast-1' as argument, the return value is 'Tokyo' (initial-capital always)
+     *  @param _locationStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @return If _locationStr is _NOT_ actual AWS region, you'll get null.  Otherwise, a NotNull string
+     *  @throws Exception any errors trying to load and parse the file at {@link #REGION2LOCATIONMAPPING}
+     */
+    private String getRegion( final String _locationStr ) throws Exception {
+        if ( bNeverRan_RegionLookup ) {
+            final Properties AWSLocations2Regions = org.ASUX.common.Utils.parseProperties( "@"+ LOCATION2REGIONMAPPING ); 
+            location2RegionLookupProps.putAll( AWSLocations2Regions );
+            bNeverRan_RegionLookup = false;
+        }
+        return location2RegionLookupProps.getProperty( "AWS-"+ _locationStr );
     }
 
     //==============================================================================
@@ -387,17 +437,17 @@ public class AWSSDK {
     //==============================================================================
 
     /**
-     *  An offline implementation (substituting for {@link #getRegions()}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  An offline implementation (substituting for {@link #getRegions()}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.
      *  @return a NotNull instance
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList<String> getRegions_Offline() throws Exception {
-        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWSRegions.yaml";
+        final String YAMLFile = getOfflineFolderPath() +"/AWSRegions.yaml";
         return this.convNode2ArrayList( this.readYamlFile( YAMLFile ) );
     }
 
     /**
-     *  <p>An offline implementation (substituting for {@link #getVPCID(String, boolean)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.</p>
+     *  <p>An offline implementation (substituting for {@link #getVPCID(String, boolean)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
      *  <p>Get the single Default-VPC  - or - the 1st Non-Default VPC (based on the argument passed to this method)</p>
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
      *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
@@ -413,7 +463,7 @@ public class AWSSDK {
     }
 
     /**
-     *  <p>An offline implementation (substituting for {@link #getVPCs(String, boolean)} that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.</p>
+     *  <p>An offline implementation (substituting for {@link #getVPCs(String, boolean)} that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
      *  Get the list of VPC-ID for _ALL_ the VPCs (incl. default)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
      *  @param _onlyNonDefaultVPC true if you want the default VPC, else false will return the 1st NON-DEFAULT VPC
@@ -421,30 +471,30 @@ public class AWSSDK {
      *  @throws Exception thrown if any issues reading the cached YAML files 
      */
     public ArrayList< LinkedHashMap<String,Object> > getVPCs_Offline( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
-        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/VPCdetails"+ (_onlyNonDefaultVPC ? "-NotDefaults" : "-all" ) +"-"+ this.getLocation( _regionStr ) +".yaml";
+        final String YAMLFile = getOfflineFolderPath() +"/VPCdetails"+ (_onlyNonDefaultVPC ? "-NotDefaults" : "-all" ) +"-"+ this.getLocation( _regionStr ) +".yaml";
         return this.convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
     }
 
     //==============================================================================
     /**
-     *  An offline implementation (substituting for {@link #getAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  An offline implementation (substituting for {@link #getAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {getOfflineFolderPath() folder.
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
      *  @return a NotNull instance
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList<String> getAZs_Offline( final String _regionStr ) throws Exception {
-        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        final String YAMLFile = getOfflineFolderPath() +"/AWS.AZlist-"+ _regionStr +".yaml";
         return this.convNode2ArrayList( this.readYamlFile( YAMLFile ) );
     }
 
     /**
-     *  An offline implementation (substituting for {@link #describeAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {AWSCFNHOME +"/config/inputs/"} folder.
+     *  An offline implementation (substituting for {@link #describeAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {getOfflineFolderPath() +"/etc/offline-downloads/"} folder.
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
      *  @return a NotNull instance
      *  @throws Exception thrown if any issues reading the cached YAML files.
      */
     public ArrayList< LinkedHashMap<String,Object> > describeAZs_Offline( final String _regionStr ) throws Exception  {
-        final String YAMLFile = getAWSCFNHOME() +"/config/inputs/AWS.AZlist-"+ _regionStr +".yaml";
+        final String YAMLFile = getOfflineFolderPath() +"/AWS.AZlist-"+ _regionStr +".yaml";
         return convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
     }
 
