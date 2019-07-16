@@ -315,7 +315,7 @@ public class AWSSDK {
      *  @return a NotNull path like <code>~/org.ASUX/AWS/etc/offline-downloads</code> (assuming you installed org.ASUX project at <code>~/org.ASUX</code>);  Note: this will never be Null.
      */
     public static final String getOfflineFolderPath() {
-        final String offlinefldr = getAWSHOME() + "/etc/offline-downloads";
+        final String offlinefldr = getAWSHOME() + "/AWS-SDK/etc/offline-downloads";
         if ( AWSSDK.bNeverRan_getOfflineFolderPath ) {
             final File fObj = new File( offlinefldr );
             assertTrue( fObj.exists() && fObj.canRead() );
