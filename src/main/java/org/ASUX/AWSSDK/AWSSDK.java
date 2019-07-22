@@ -124,8 +124,16 @@ import com.amazonaws.services.route53.AmazonRoute53ClientBuilder;
 import com.amazonaws.services.route53.model.ListHostedZonesByNameRequest;
 import com.amazonaws.services.route53.model.ListHostedZonesByNameResult;
 import com.amazonaws.services.route53.model.HostedZone;
+import com.amazonaws.services.route53.model.HostedZoneConfig;
 // import com.amazonaws.services.route53.model.ListResourceRecordSetsResult;
 // import com.amazonaws.services.route53.model.ListResourceRecordSetsRequest;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/AmazonIdentityManagement.html
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagement;
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClientBuilder;
+import com.amazonaws.services.identitymanagement.model.GetUserResult; // for getUser()  // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/model/GetUserResult.html
+import com.amazonaws.services.identitymanagement.model.User; // user.getArn() and user.getCreateDate()/java.util.Data and user.getTags() and user.getUserId() and user.getUserName()/Friendly-username
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/model/User.html
+
 
 import static org.junit.Assert.*;
 
@@ -282,6 +290,16 @@ public class AWSSDK {
         return Rt53;
     }
 
+    private AmazonIdentityManagement getIAMHndl( final String _regionStr ) {
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/AmazonIdentityManagement.html
+        // final AmazonIdentityManagement IAM = AmazonIdentityManagement.defaultClient();
+        final AmazonIdentityManagement IAM = AmazonIdentityManagementClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        // final AmazonIdentityManagement IAM = AmazonIdentityManagementClientBuilder.standard().build();
+        // To use the default credential/region provider chain 
+        // AmazonIdentityManagement IAM = AmazonIdentityManagement.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+        return IAM;
+    }
+
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
@@ -386,6 +404,18 @@ public class AWSSDK {
         }
         return retarr;
     }
+
+    // The following method is _NOT_ going to work - EVER.
+    // tag is of Generic-Type t, and compiler will never know what the heck is 'tag.getKey()' and 'tag.getValue()' !!
+    // Worse, Amazon does _NOT_ have a 'base-class' for all their Tags classes (example: amazonaws.services.identitymanagement.model.Tag & com.amazonaws.services.ec2.model.Tag)
+    // private static <T> LinkedHashMap<String,Object> convertAWSTagsToSimpleList( List<T> _tags ) throws Exception {
+    //     // final List<com.amazonaws.services.ec2.model.Tag>	tags = vpc.getTags();
+    //     final LinkedHashMap<String,Object> map = new LinkedHashMap<String,Object>();
+    //     for ( T tag: _tags ) {
+    //         map.put( tag.getKey(), tag.getValue() );
+    //     }
+    //     return map;
+    // }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -525,6 +555,54 @@ public class AWSSDK {
         return retarr;
     }
 
+    //==============================================================================
+
+    /**
+     * @return Based on the Access-Keys used to interact with AWS SDK/APIs, determine the IAM-user that the access-keys belong to
+     * @throws Exception if any issues with invoking AWS APIs/SDKs.  There should be No exceptions from this ASUX.org library
+     */
+    public String getUserARN() throws Exception {
+        if ( this.offline ) return "running--offline";
+        final AmazonIdentityManagement IAM = this.getIAMHndl( null );
+        final com.amazonaws.services.identitymanagement.model.User user = IAM.getUser().getUser();
+        return user.getArn();
+    }
+
+    //==============================================================================
+
+    /**
+     * @return Based on the Access-Keys used to interact with AWS SDK/APIs, determine the IAM-user that the access-keys belong to
+     * @throws Exception if any issues with invoking AWS APIs/SDKs.  There should be No exceptions from this ASUX.org library
+     */
+    public String getUserName() throws Exception {
+        if ( this.offline ) return "running--offline";
+        final AmazonIdentityManagement IAM = this.getIAMHndl( null );
+        final com.amazonaws.services.identitymanagement.model.User user = IAM.getUser().getUser();
+        return user.getUserName();
+    }
+
+    //==============================================================================
+
+    /**
+     * @return Based on the Access-Keys used to interact with AWS SDK/APIs, determine the IAM-user that the access-keys belong to.. and then get the Tags associated with that user.
+     * @throws Exception if any issues with invoking AWS APIs/SDKs.  There should be No exceptions from this ASUX.org library
+     */
+    public LinkedHashMap<String,Object> getUserTags() throws Exception {
+        final LinkedHashMap<String,Object> map = new LinkedHashMap<String,Object>();
+        if ( this.offline ) {
+            map.put( "running--offline", "true" );
+            return map;
+        }
+        final AmazonIdentityManagement IAM = this.getIAMHndl( null );
+        final com.amazonaws.services.identitymanagement.model.User user = IAM.getUser().getUser();
+        for ( com.amazonaws.services.identitymanagement.model.Tag tag: user.getTags() ) {
+            map.put( tag.getKey(), tag.getValue() );
+        }
+        return map;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
     /**
@@ -865,11 +943,12 @@ public class AWSSDK {
      *  Given a FQDN like 'example.com' (if that is hosted by Route53), you'll get the ZoneID (like 'Z2NF71MJ75KYXK') back (if search request is valid)
      *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
      *  @param _DNSHostedZoneName a NotNull string like 'server.subdomain.example.com'
+     *  @param _needPublicHostedZone true === public hosted-zone, false === private hosted-zone
      *  @return a NotNull string like 'Z2NF71MJ75KYXK' (representing the HostedZoneID as you can see within Route53 domain)
      *  @throws Exception throws InvalidInputException, if input is not valid /or/ throws InvalidDomainNameException, if specified domain name is not valid.
      */
-    public final String getHostedZoneId( final String _regionStr, final String _DNSHostedZoneName ) throws Exception {
-        final String HDR = CLASSNAME +"getHostedZoneId("+ _regionStr +","+ _DNSHostedZoneName +"): ";
+    public final String getHostedZoneId( final String _regionStr, final String _DNSHostedZoneName, final boolean _needPublicHostedZone ) throws Exception {
+        final String HDR = CLASSNAME +"getHostedZoneId("+ _regionStr +","+ _DNSHostedZoneName +","+ _needPublicHostedZone +"): ";
         if ( this.offline ) {
             System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
             // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
@@ -886,13 +965,24 @@ public class AWSSDK {
             return zoneid;
         } else {
             final List<HostedZone> zones = response.getHostedZones();
-            if ( zones.size() > 0 ) {
-                final HostedZone zone1 = zones.get(0);
-                if (this.verbose) System.out.println( HDR + "_DNSHostedZoneName " + _DNSHostedZoneName + " zone1= " + zone1  + " zone1.getId()= " + zone1.getId()  );
-                return zone1.getId().replaceFirst( "/hostedzone/", "" );
-            } else {
-                throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
-            }
+            // if ( zones.size() > 0 )
+            for( HostedZone zone: zones ) {
+                final HostedZoneConfig zconf = zone.getConfig();
+                final boolean isAPrivateZone = zconf.getPrivateZone();  // see https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/model/HostedZoneConfig.html#getPrivateZone--
+                if (this.verbose) System.out.println( HDR + "_DNSHostedZoneName " + _DNSHostedZoneName + " zone= " + zone  + " zone1.getId()= " + zone.getId() +" zone.getConfig()="+ zconf  );
+                if ( _needPublicHostedZone )
+                    if ( isAPrivateZone )
+                        continue;
+                    else
+                        return zone.getId().replaceFirst( "/hostedzone/", "" );
+                else // need a PRIVATE HostedZone
+                    if ( isAPrivateZone )
+                        return zone.getId().replaceFirst( "/hostedzone/", "" );
+                    else
+                        continue;
+            } // for-loop
+            // We should Not be here.  After all we assume that .. if you need an ID to a Zone, you are providing a EXISTING/KNOWN Hosted-Zone name.
+            throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
         }
     }
 
