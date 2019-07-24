@@ -873,6 +873,12 @@ public class AWSSDK {
         assertTrue( homedir != null );
         final File awsuserhome = new File( homedir +"/.aws" );
         awsuserhome.mkdirs();
+
+        if ( _offline ) {
+            final AWSSDK awssdk = new AWSSDK(_verbose);
+            return awssdk;
+        }
+
         // final String AWSProfileFileNameStr = homedir +"/.aws/profile";
         final Path AWSProfileFilePath = FileSystems.getDefault().getPath( homedir, "/.aws/profile" );
         final String AWSProfileFileNameStr = AWSProfileFilePath.toString();
@@ -913,15 +919,10 @@ public class AWSSDK {
             final String AWSSecretAccessKey = System.getProperty( "aws.secretAccessKey");
             // System.out.println( "AWSAccessKeyId=["+ AWSAccessKeyId +" AWSSecretAccessKey=["+ AWSSecretAccessKey +"]" );
 
-            if ( _offline ) {
-                final AWSSDK awssdk = new AWSSDK(_verbose);
-                return awssdk;
-            } else {
-                final AWSSDK awssdk = ( AWSSDK.getConnectionNoThrow() != null )
-                                        ? AWSSDK.getConnectionNoThrow()
-                                        : AWSSDK.getConnection( _verbose, AWSAccessKeyId, AWSSecretAccessKey );
-                return awssdk;
-            }
+            final AWSSDK awssdk = ( AWSSDK.getConnectionNoThrow() != null )
+                                    ? AWSSDK.getConnectionNoThrow()
+                                    : AWSSDK.getConnection( _verbose, AWSAccessKeyId, AWSSecretAccessKey );
+            return awssdk;
 
         } catch(FileNotFoundException fe) {
             if ( _verbose ) fe.printStackTrace(System.err);
