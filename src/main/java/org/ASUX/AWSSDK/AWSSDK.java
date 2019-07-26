@@ -33,6 +33,7 @@
 package org.ASUX.AWSSDK;
 
 import org.ASUX.common.Macros;
+import org.ASUX.common.Tuple;
 
 import org.ASUX.yaml.JSONTools;
 import org.ASUX.yaml.YAML_Libraries;
@@ -84,12 +85,14 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 
-import com.amazonaws.services.ec2.AmazonEC2;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html
+import com.amazonaws.services.ec2.AmazonEC2; // <<------- !!!!!!!!  This is an _INTERFACE_;  A Concrete implementation-class is 'AmazonEC2Client'
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2Client.html
+import com.amazonaws.services.ec2.AmazonEC2Client; // <<---- !!!!!!!!! This implements the _INTERFACE_ called 'AmazonEC2'
 
 import com.amazonaws.services.ec2.model.*;
-import com.amazonaws.services.ec2.AmazonEC2Client;
 // !!!!!!! ATTENTION !!!!!!!! 'Tag' clashes with SnakeYaml's 'Tag';  So, cannot import this.
 // import com.amazonaws.services.ec2.model.Tag;         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
 // import com.amazonaws.services.ec2.model.Region;
@@ -134,6 +137,11 @@ import com.amazonaws.services.identitymanagement.model.GetUserResult; // for get
 import com.amazonaws.services.identitymanagement.model.User; // user.getArn() and user.getCreateDate()/java.util.Data and user.getTags() and user.getUserId() and user.getUserName()/Friendly-username
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/model/User.html
 
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/InternetGateway.html
+import com.amazonaws.services.ec2.model.InternetGateway;
+import com.amazonaws.services.ec2.model.DescribeInternetGatewaysRequest;
+import com.amazonaws.services.ec2.model.DescribeInternetGatewaysResult;
+// aws ec2 describe-internet-gateways --query 'InternetGateways[*].InternetGatewayId'   <-- will return ALL known IGW IDs (in that region).  Note! No VPC mentioned!
 
 import static org.junit.Assert.*;
 
@@ -299,6 +307,83 @@ public class AWSSDK {
         // AmazonIdentityManagement IAM = AmazonIdentityManagement.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
         return IAM;
     }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     * Given a AWS-Region, this method looks up _ALL_ IGWs, and then .. checks to see if there are ANY associated with the VPC (passed as 2nd argument).
+     * @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     * @param _myVPC NotNull the VPC ID.  Note: If you'd like to get _ALL_ IGWs, to attach to your _NEW_ VPC, use 
+     * @return either Null (if No IGWs are __ASSOCIATED__ with the _myVPC argument), or the ID of the 1st IGW associated with your _myVPC
+     */
+    public String getIGWForVPC( final String _regionStr, final String _myVPC ) {
+        final String HDR = CLASSNAME +"getAWSIGWs("+ _regionStr +","+ _myVPC +"): ";
+        assertTrue( _regionStr != null);
+        assertTrue( _myVPC != null );
+
+        // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-ec2-regions-zones.html
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        // To use the default credential/region provider chain 
+        // Ec2Client ec2 = Ec2Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+
+        // final DescribeInternetGatewaysResult igwGWResult = new DescribeInternetGatewaysRequest().withInternetGatewayIds( _getExistingIGW );
+
+        final DescribeInternetGatewaysResult igwGWResult = ec2.describeInternetGateways( new DescribeInternetGatewaysRequest() );
+
+        for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
+            System.err.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
+            for ( InternetGatewayAttachment attachment : igw.getAttachments() ) {
+                System.err.println( HDR +"FYI: IGW ID#"+ igw.getInternetGatewayId() +" is currently attached to VPC ID# "+ attachment.getVpcId() );
+                if ( attachment.getVpcId().equals( _myVPC ) ) {
+                    return igw.getInternetGatewayId();
+                } // if
+            } // INNER For-loop
+        } // OUTER For-loop
+
+        return null;
+    }
+
+    /**
+     * Given a AWS-Region, this method looks up _ALL_ IGWs (in your account for _THAT_ region)
+     * @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     * @return either __EMPTY_ list (if No IGWs are __ASSOCIATED__ with the region), or one ore more entries.  Guaranteed to be NotNull
+     */
+    public ArrayList< Tuple<String,String> >  getIGWs( final String _regionStr ) {
+        final String HDR = CLASSNAME +"getAWSIGWs("+ _regionStr +"): ";
+        assertTrue( _regionStr != null);
+        final ArrayList< Tuple<String,String> > arr = new ArrayList< Tuple<String,String> >();
+
+        // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-ec2-regions-zones.html
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        // To use the default credential/region provider chain 
+        // Ec2Client ec2 = Ec2Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+
+        final DescribeInternetGatewaysResult igwGWResult = ec2.describeInternetGateways( new DescribeInternetGatewaysRequest() );
+
+        for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
+            if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
+            for ( InternetGatewayAttachment attachment : igw.getAttachments() ) {
+                if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +" is attached to VPC ID# "+ attachment.getVpcId() );
+                arr.add( new Tuple<String,String>( igw.getInternetGatewayId(), attachment.getVpcId() ) );
+            } // INNER For-loop
+        } // OUTER For-loop
+
+        return arr;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
