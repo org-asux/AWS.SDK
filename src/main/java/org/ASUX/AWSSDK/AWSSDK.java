@@ -100,7 +100,13 @@ import com.amazonaws.services.ec2.model.*;
     // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/AvailabilityZone.html
 // import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 // import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
-import com.amazonaws.services.ec2.model.Vpc;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/model/AssociateVPCWithHostedZoneRequest.html
+import com.amazonaws.services.route53.model.AssociateVPCWithHostedZoneRequest;
+import com.amazonaws.services.route53.model.AssociateVPCWithHostedZoneResult;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/model/VPC.html
+import com.amazonaws.services.route53.model.VPC;    // !!!!!!!!!!!!!!!!! ATTENTION !!!!!!!!!!!!!!!!!! This is a different VPC class !!!!!!!!!!!!!!!!!!
+
+import com.amazonaws.services.ec2.model.Vpc;        // !!!!!!!!!!!!!!!!! ATTENTION !!!!!!!!!!!!!!!!!! This is a different VPC class !!!!!!!!!!!!!!!!!!
 import com.amazonaws.services.ec2.model.DescribeVpcsResult;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
@@ -241,6 +247,31 @@ public class AWSSDK {
     }
 
     //==============================================================================
+    protected enum ProgressBarMileStones { STARTING, INPROGRESS, COMPLETED, UNKNOWN };
+
+    protected void showProgressbar( final boolean _justReadOnly, final ProgressBarMileStones _stepStatus, final String _context ) {
+        // if ( this.verbose )
+        //     System.out.println( ?? Why ?? we've tons of verbose output everywhere !!! )
+        if ( _justReadOnly ) {
+            switch ( _stepStatus ) {
+            case STARTING:      System.out.print(".");  break;
+            case INPROGRESS:    System.out.print(".");  break;
+            case COMPLETED:     System.out.print(". "); break;
+            case UNKNOWN:
+            default:            assertTrue( false );
+            } // end switch
+        } else {
+            switch ( _stepStatus ) {
+            case STARTING:      System.out.print( " !"+ _context ); break;
+            case INPROGRESS:    System.out.print(".");  break;
+            case COMPLETED:     System.out.print(". "); break;
+            case UNKNOWN:
+            default:            assertTrue( false );    break;
+            } // end switch
+        } // if-else
+    }
+
+    //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
@@ -268,10 +299,14 @@ public class AWSSDK {
         assertTrue ( this.offline == false );
             // throw new MyAWSException( CLASSNAME +": AWSAuthenticate(..,..): INTERNAL SERIOUS ERROR: !!!! Logic-mistake in code !!!! UN-expectedly invoked the this method." );
         this.bTried2Authenticate = true;
+        showProgressbar( false, ProgressBarMileStones.STARTING, "Logging in" );
         // Authenticate into AWS
         // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
         this.aws_credentials = new BasicAWSCredentials( _AWSAccessKeyId, _AWSSecretAccessKey );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
+
         this.AWSAuthenticationHndl = new AWSStaticCredentialsProvider( this.aws_credentials );
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, null );
     }
 
     //==============================================================================
@@ -281,7 +316,9 @@ public class AWSSDK {
     private AmazonEC2 getAWSEC2Hndl( final String _regionStr ) {
         // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-ec2-regions-zones.html
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "AWS.SDK.EC2 init" );
         final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, null );
         // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         // To use the default credential/region provider chain 
         // Ec2Client ec2 = Ec2Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
@@ -291,7 +328,9 @@ public class AWSSDK {
     private AmazonRoute53 getAWSRoute53Hndl( final String _regionStr ) {
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html 
         // final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.defaultClient();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "AWS.SDK.Rt53 init" );
         final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, null );
         // final AmazonRoute53 Rt53 = AmazonRoute53ClientBuilder.standard().build();
         // To use the default credential/region provider chain 
         // AmazonRoute53Client Rt53 = AmazonRoute53Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
@@ -301,7 +340,9 @@ public class AWSSDK {
     private AmazonIdentityManagement getIAMHndl( final String _regionStr ) {
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/AmazonIdentityManagement.html
         // final AmazonIdentityManagement IAM = AmazonIdentityManagement.defaultClient();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "AWS.SDK.IAM init" );
         final AmazonIdentityManagement IAM = AmazonIdentityManagementClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, null );
         // final AmazonIdentityManagement IAM = AmazonIdentityManagementClientBuilder.standard().build();
         // To use the default credential/region provider chain 
         // AmazonIdentityManagement IAM = AmazonIdentityManagement.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
@@ -323,16 +364,15 @@ public class AWSSDK {
         assertTrue( _regionStr != null);
         assertTrue( _myVPC != null );
 
-        // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-ec2-regions-zones.html
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
-        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
-        // To use the default credential/region provider chain 
-        // Ec2Client ec2 = Ec2Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+        if ( this.offline ) return "running--offline-No-IGW";
+
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
 
         // final DescribeInternetGatewaysResult igwGWResult = new DescribeInternetGatewaysRequest().withInternetGatewayIds( _getExistingIGW );
 
+        showProgressbar( true, ProgressBarMileStones.STARTING, null );
         final DescribeInternetGatewaysResult igwGWResult = ec2.describeInternetGateways( new DescribeInternetGatewaysRequest() );
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
 
         for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
             System.err.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
@@ -350,21 +390,24 @@ public class AWSSDK {
     /**
      * Given a AWS-Region, this method looks up _ALL_ IGWs (in your account for _THAT_ region)
      * @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
-     * @return either __EMPTY_ list (if No IGWs are __ASSOCIATED__ with the region), or one ore more entries.  Guaranteed to be NotNull
+     * @return either __EMPTY_ list (if No IGWs are __ASSOCIATED__ with the region)..  or, one ore more KV-PAIRS(IGWID,VPCID).  Guaranteed to be NotNull
      */
     public ArrayList< Tuple<String,String> >  getIGWs( final String _regionStr ) {
         final String HDR = CLASSNAME +"getAWSIGWs("+ _regionStr +"): ";
         assertTrue( _regionStr != null);
+        if ( this.offline ) {
+            final ArrayList< Tuple<String,String> >   r = new ArrayList<>();
+            r.add( new Tuple<>( "running--offline-No-list-of-IGWs","?VPCID?") );
+            return r;
+        }
+
         final ArrayList< Tuple<String,String> > arr = new ArrayList< Tuple<String,String> >();
 
-        // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-ec2-regions-zones.html
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
-        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
-        // To use the default credential/region provider chain 
-        // Ec2Client ec2 = Ec2Client.create(); // AWS_REGION is checked .. ~/.aws/config default profile .. aws.profile system property
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
 
+        showProgressbar( true, ProgressBarMileStones.STARTING, null );
         final DescribeInternetGatewaysResult igwGWResult = ec2.describeInternetGateways( new DescribeInternetGatewaysRequest() );
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
 
         for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
             if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
@@ -630,8 +673,10 @@ public class AWSSDK {
         if ( this.offline ) return getRegions_Offline();
 
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( null );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        showProgressbar( true, ProgressBarMileStones.STARTING, null );
         final DescribeRegionsResult regions_response = ec2.describeRegions();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         final ArrayList<String> retarr = new ArrayList<String>();
         for(Region region : regions_response.getRegions()) {
             // System.out.printf( "Found region %s with endpoint %s\n", region.getRegionName(), region.getEndpoint());
@@ -662,6 +707,7 @@ public class AWSSDK {
     public String getUserName() throws Exception {
         if ( this.offline ) return "running--offline";
         final AmazonIdentityManagement IAM = this.getIAMHndl( null );
+        // showProgressbar( true, ProgressBarMileStones.???, null );
         final com.amazonaws.services.identitymanagement.model.User user = IAM.getUser().getUser();
         return user.getUserName();
     }
@@ -679,7 +725,9 @@ public class AWSSDK {
             return map;
         }
         final AmazonIdentityManagement IAM = this.getIAMHndl( null );
+        showProgressbar( true, ProgressBarMileStones.STARTING, null );
         final com.amazonaws.services.identitymanagement.model.User user = IAM.getUser().getUser();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
         for ( com.amazonaws.services.identitymanagement.model.Tag tag: user.getTags() ) {
             map.put( tag.getKey(), tag.getValue() );
         }
@@ -700,8 +748,10 @@ public class AWSSDK {
     public String getVPCID( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
         if ( this.offline ) return getVPCID_Offline( _regionStr, _onlyNonDefaultVPC );
 
+        showProgressbar( false, ProgressBarMileStones.STARTING, "getVPCs" );
         for(LinkedHashMap<String,Object> vpc : this.getVPCs( _regionStr, _onlyNonDefaultVPC ) ) {
-            return (String) vpc.get( "ID" );
+            showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+            return (String) vpc.get( "ID" ); // return the 1st element found.
         }
         return null;
     }
@@ -717,11 +767,18 @@ public class AWSSDK {
         if ( this.offline ) return getVPCs_Offline( _regionStr, _onlyNonDefaultVPC );
 
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "describeVPCs" );
         final DescribeVpcsResult vpclist_response = ec2.describeVpcs();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList<>();
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Vpc.html
-        for(Vpc vpc : vpclist_response.getVpcs()) {
+        // warning!  There are 2 VPCs in AWS Data Model !!!
+        // com.amazonaws.services.route53.model.VPC
+        // com.amazonaws.services.ec2.model.Vpc
+        showProgressbar( false, ProgressBarMileStones.STARTING, "getVPCs" );
+        for( com.amazonaws.services.ec2.model.Vpc vpc : vpclist_response.getVpcs()) {
+            showProgressbar( false, ProgressBarMileStones.INPROGRESS, "getVPCs" );
             if ( this.verbose) System.out.printf( "Found VPC ID=%s with CIDRBlock=%s", vpc.getVpcId(), vpc.getCidrBlock() );
             if ( vpc.isDefault() ) {
                 if ( this.verbose) System.out.println( " - is DEFAULT VPC" ); 
@@ -737,13 +794,17 @@ public class AWSSDK {
             ix.put ( "ID", vpc.getVpcId() );
             ix.put ( "CIDRBlock", vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
             // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
+            showProgressbar( true, ProgressBarMileStones.STARTING, null );
             final List<com.amazonaws.services.ec2.model.Tag>	tags = vpc.getTags();
+            showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
             for ( com.amazonaws.services.ec2.model.Tag tag: tags ) {
                 ix.put( tag.getKey(), tag.getValue() );
             }
             retarr.add( ix );
             // List<VpcCidrBlockAssociation>	getCidrBlockAssociationSet() // Information about the IPv4 CIDR-blocks (__MULTIPLE__) associated with the VPC.
         }
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, "getVPCs" );
         return retarr;
     }
 
@@ -759,8 +820,10 @@ public class AWSSDK {
         if ( this.offline ) return getAZs_Offline( _regionStr );
 
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "AZs" );
         DescribeAvailabilityZonesResult zones_response = ec2.describeAvailabilityZones();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         final ArrayList<String> retarr = new ArrayList<String>();
         for(AvailabilityZone zone : zones_response.getAvailabilityZones()) {
             // System.out.printf( "Found availability zone %s with status %s in region %s\n", zone.getZoneName(), zone.getState(), zone.getRegionName());
@@ -781,8 +844,10 @@ public class AWSSDK {
         if ( this.offline ) return describeAZs_Offline( _regionStr );
 
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+        showProgressbar( false, ProgressBarMileStones.STARTING, "AZs" );
         DescribeAvailabilityZonesResult zones_response = ec2.describeAvailabilityZones();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList<>();
 
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/AvailabilityZone.html
@@ -849,10 +914,13 @@ public class AWSSDK {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/DeleteKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+
+        showProgressbar( false, ProgressBarMileStones.STARTING, "DeleteEC2KeyPair" );
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
         final DeleteKeyPairRequest request = new DeleteKeyPairRequest().withKeyName( _MySSHKeyName );
         final DeleteKeyPairResult response = ec2.deleteKeyPair(request);
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         if ( this.verbose) System.out.println( HDR +"DeleteKeyPairResult =\n"+ response.toString() );
         if ( response == null ||    !  "{}".equals( response.toString().trim() ) )
             throw new Exception( "FAILURE invoking AWS-SDK re: "+ HDR +"\nResponse="+response );
@@ -877,10 +945,13 @@ public class AWSSDK {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+
+        showProgressbar( false, ProgressBarMileStones.STARTING, "CreateEC2KeyPair" );
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
         final CreateKeyPairRequest request = new CreateKeyPairRequest().withKeyName( _MySSHKeyName );
         final CreateKeyPairResult response = ec2.createKeyPair(request);
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         if (this.verbose) System.out.println( HDR +"CreateKeyPairResult =\n"+ response.getKeyPair().toString() );
         // response.getKeyPair().toString().. .. is JSON containing 3 elements: {KeyFingerprint: 29:cf:7b:f2:19:30:59:4f:96:1a:cc:3c:4d:de:2e:ce:d4:68:b0:79, KeyMaterial: -----BEGIN RSA PRIVATE KEY----- .. .. .. -----END RSA PRIVATE KEY-----,KeyName: <_MySSHKeyName>}
         if ( this.verbose) System.out.println( HDR +"CreateKeyPairResult KeyFingerprint=\n"+ response.getKeyPair().getKeyFingerprint() );
@@ -913,16 +984,16 @@ public class AWSSDK {
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
         // http://docs.amazonaws.cn/en_us/sdk-for-java/v1/developer-guide/examples-ec2-key-pairs.html
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
-        // final AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
         final DescribeKeyPairsRequest request = (_MySSHKeyName == null || "".equals( _MySSHKeyName.trim())  || "null".equals( _MySSHKeyName.trim()) )
                                 ? new DescribeKeyPairsRequest()
                                 : new DescribeKeyPairsRequest().withKeyNames( _MySSHKeyName );
 
-        
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/services/ec2/AmazonEC2Client.html
         try {
+            showProgressbar( false, ProgressBarMileStones.STARTING, "DescribeEC2KeyPairs" );
             final DescribeKeyPairsResult response = ec2.describeKeyPairs( request );
             final List<KeyPairInfo> keys = response.getKeyPairs();
+            showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
             if (this.verbose) System.out.println( HDR +"DescribeKeyPairsResult has "+ keys.size() +"keys =\n"+ keys );
             return keys;
         } catch( com.amazonaws.services.ec2.model.AmazonEC2Exception ae ) {
@@ -1028,7 +1099,7 @@ public class AWSSDK {
     /**
      *  Given a FQDN like 'example.com' (if that is hosted by Route53), you'll get the ZoneID (like 'Z2NF71MJ75KYXK') back (if search request is valid)
      *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
-     *  @param _DNSHostedZoneName a NotNull string like 'server.subdomain.example.com'
+     *  @param _DNSHostedZoneName a NotNull string like 'subdomain.example.com'
      *  @param _needPublicHostedZone true === public hosted-zone, false === private hosted-zone
      *  @return a NotNull string like 'Z2NF71MJ75KYXK' (representing the HostedZoneID as you can see within Route53 domain)
      *  @throws Exception throws InvalidInputException, if input is not valid /or/ throws InvalidDomainNameException, if specified domain name is not valid.
@@ -1042,10 +1113,14 @@ public class AWSSDK {
         }
 
         final AmazonRoute53 Rt53 = this.getAWSRoute53Hndl( _regionStr );
+        showProgressbar( false, ProgressBarMileStones.STARTING, "Rt53ListHostedZones" );
         final ListHostedZonesByNameRequest req = new ListHostedZonesByNameRequest().withDNSName( _DNSHostedZoneName +"." );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listHostedZonesByName-com.amazonaws.services.route53.model.ListHostedZonesByNameRequest-
         final ListHostedZonesByNameResult response = Rt53.listHostedZonesByName( req ); // Retrieves a list of the public + private hosted zones
         // Attention: 'ListHostedZonesByNameResult' (ListHostedZonesByName()) sorts hosted-zones by name with the labels reversed. For example:    com.example.www.
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
         String zoneid = response.getHostedZoneId(); // !!!!!!!!!!!!!!!!!! ATTENTION !!!!!!!!!!!!!!!!!!!!! Apparently, this always returns 'null'.   So, we need if-else below.
         if ( zoneid != null ) {
             return zoneid;
@@ -1076,6 +1151,35 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
+    /**
+     *  Given a region and a HostedZone in it, this will associate the Rt53 HostedZone with VPCID (for now, you'll see a dump on STDERR, as to whether it succeeded-or-NOT)
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _DNSHostedZoneID a NotNull ID.  __NOT__ the DomainName (Note.. invoke this.getHostedZoneId( 'subdomain.example.com' ) to derive this argument)
+     *  @param _myVPC NotNull the VPC ID.  Note: If you'd like to get _ALL_ IGWs, to attach to your _NEW_ VPC, use 
+     */
+    public void associateRt53HostedZoneWithVPC( final String _regionStr, final String _DNSHostedZoneID, final String _myVPC )
+    {   final String HDR = CLASSNAME +"associateRt53HostedZoneWithVPC("+ _DNSHostedZoneID +","+ _myVPC +"): ";
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            return;
+        }
+
+        final AmazonRoute53 Rt53 = this.getAWSRoute53Hndl( _regionStr );
+        // warning!  There are 2 VPCs in AWS Data Model !!!
+        // com.amazonaws.services.route53.model.VPC
+        // com.amazonaws.services.ec2.model.Vpc
+        showProgressbar( false, ProgressBarMileStones.STARTING, "Rt53AssociateWithVPC" );
+        final com.amazonaws.services.route53.model.VPC vpc = new com.amazonaws.services.route53.model.VPC().withVPCId( _myVPC );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
+        final AssociateVPCWithHostedZoneRequest assocRequest = new AssociateVPCWithHostedZoneRequest().withHostedZoneId( _DNSHostedZoneID );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
+        assocRequest.setVPC( vpc );
+        final AssociateVPCWithHostedZoneResult assocRes = Rt53.associateVPCWithHostedZone( assocRequest );
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+        System.err.println( HDR + assocRes );
+        // final ChangeInfo ci = assocRes.getChangeInfo(); // <-- A complex type that describes the changes made to your hosted zone.
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/model/ChangeInfo.html
+    }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
