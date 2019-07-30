@@ -52,6 +52,8 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.Properties;
 
+import java.util.regex.*;
+
 import java.io.IOException;
 import java.io.File;
 import java.io.InputStream;
@@ -756,6 +758,12 @@ public class AWSSDK {
         return null;
     }
 
+    //==============================================================================
+    public static final String VPC_ISDEFAULT = "isDefault";
+    public static final String VPC_ID = "VPCID";
+    public static final String VPC_CIDRBLOCK = "CIDRBlock";
+    //==============================================================================
+
     /**
      *  Get the list of VPC-ID for _ALL_ the VPCs (incl. default)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
@@ -790,9 +798,9 @@ public class AWSSDK {
             if ( this.verbose) System.out.println( vpc.toString() );
             final LinkedHashMap<String,Object> ix = new LinkedHashMap<String,Object>();
             // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Vpc.html
-            ix.put ( "isDefault", vpc.isDefault() );
-            ix.put ( "ID", vpc.getVpcId() );
-            ix.put ( "CIDRBlock", vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
+            ix.put ( VPC_ISDEFAULT, vpc.isDefault() );
+            ix.put ( VPC_ID,        vpc.getVpcId() );
+            ix.put ( VPC_CIDRBLOCK, vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
             // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
             showProgressbar( true, ProgressBarMileStones.STARTING, null );
             final List<com.amazonaws.services.ec2.model.Tag>	tags = vpc.getTags();
@@ -832,6 +840,12 @@ public class AWSSDK {
         return retarr;
     }
 
+    //==============================================================================
+    public static final String KV_ZONENAME  = "ZoneName";
+    public static final String KV_ZONEID    = "ZoneId";
+    public static final String KV_STATE     = "State";
+    public static final String KV_ZONEREGIONNAME= "RegionName";
+    public static final String KV_ZONEMESSAGES  = "Messages";
     //==============================================================================
 
     /**
@@ -874,15 +888,15 @@ public class AWSSDK {
             // retarr.add( map );
 
             final LinkedHashMap<String,Object> oneZone = new LinkedHashMap<>();
-            oneZone.put( "ZoneName",    zone.getZoneName() );
-            oneZone.put( "ZoneId",      zone.getZoneId() );
-            oneZone.put( "State",       zone.getState() );
-            oneZone.put( "RegionName",  zone.getRegionName() );
+            oneZone.put( KV_ZONENAME,       zone.getZoneName()  );
+            oneZone.put( KV_ZONEID,         zone.getZoneId()    );
+            oneZone.put( KV_STATE,          zone.getState()     );
+            oneZone.put( KV_ZONEREGIONNAME, zone.getRegionName() );
             final ArrayList<String> sm = new ArrayList<>();
             for( AvailabilityZoneMessage azm: zone.getMessages() ) {
                 sm.add( azm.getMessage() );
             }
-            oneZone.put( "Messages", sm );
+            oneZone.put( KV_ZONEMESSAGES, sm );
             if ( this.verbose ) System.out.println( CLASSNAME +": describeAZs(): aws ec2 describe-az command output in JSON-compatible form is ["+ oneZone.toString() +"]" );
 
             retarr.add( oneZone );
@@ -891,6 +905,22 @@ public class AWSSDK {
         return retarr;
     }
 
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    // /**
+    //  * @param _regionStr 
+    //  * @param _VPCID 
+    //  * @param _PublicOrPrivate 
+    //  * @return 
+    //  */
+    // public ArrayList<String> getSubnetIDs( final String _regionStr, final String _VPCID, final String _PublicOrPrivate ) {
+    //     final ArrayList< LinkedHashMap<String,Object> > vpcs = this.getVPCs( _regionStr, false );
+    //     for( LinkedHashMap<String,Object> vpc: vpcs ) {
+
+    //     }
+    // }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1184,7 +1214,37 @@ public class AWSSDK {
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
+    public static final String AWSID_REGEXP_SUFFIX = "([0-9][a-f][A-F])+";
 
+    //==============================================================================
+    /**
+     *  <p>ALL IDs in AWS (whether VPC, subnet, SG, EC2...) have a prefix + a hexadecimal suffix {@link #AWSID_REGEXP_SUFFIX}.  This method checks against that rule.</p>
+     *  <p>This is a very useful method, to use to pre-check user-input, before invoking AWS SDK API calls</p>
+     *  @param _IDStr a NotNull string representing am IOD in AWS (whether VPC, subnet, SG, EC2...)
+     *  @param _musthavePrefix (for VPCs, pass in "vpc") (for Subnets, pass in "subnet") (for SGs, pass in "sg") (for EC2 instances, pass in "i") etc..
+     *  @return true if it string matches the REGEXP pattern rule.
+     */
+    public boolean isValidAWSID( final String _IDStr, final String _musthavePrefix )
+    {   final String HDR = CLASSNAME +" Constructor: ";
+
+        final String pattStr = "^"+ _musthavePrefix + AWSID_REGEXP_SUFFIX + "$";
+        try {
+            final Pattern pattern_AWSID = Pattern.compile( pattStr );
+            final Matcher matcher = pattern_AWSID.matcher( _IDStr );
+            if ( matcher.find() ) {
+                if ( this.verbose ) System.out.println( HDR +"I found the text "+ matcher.group() +" starting at index "+  matcher.start() +" and ending at index "+ matcher.end() );
+                final String ID = matcher.group(1);
+                assertTrue( ID != null && ID.matches(_IDStr) );
+                if ( this.verbose ) System.out.println( HDR +"Confirmed: "+ _IDStr +" is a valid AWS-ID ("+ _musthavePrefix +")" );
+                return true;
+            } else 
+                return false;
+        }catch(PatternSyntaxException e){
+            if ( this.verbose ) e.printStackTrace( System.err );
+            System.err.println( HDR +" Invalid pattern '"+ pattStr +"' provided for _musthavePrefix " );
+            return false; // invalid YAML Path.  Let "this.isValid" stay as false
+        }
+    }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
