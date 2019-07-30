@@ -1,10 +1,14 @@
 #!/bin/sh -f
 
 ###------------------------------
+### You need to run this _ONCE_ for _EACH_ region!
 if [ $# -eq 1 ]; then
 	AWSRegion=$1
 else
-	echo "Usage: $0 us-east-2"
+	>&2 echo "Usage: $0 us-east-2"
+	>&2 echo ''
+	>&2 echo "You need to run this _ONCE_ for _EACH_ region!"
+	>&2 echo ''
 	exit 1
 fi
 
@@ -20,16 +24,39 @@ CmdPathGuess="$0"
 SCRIPTFLDR_RELATIVE="$(dirname "$CmdPathGuess")"
 SCRIPTFULLFLDRPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 if [ "${VERBOSE}" == "1" ]; then echo SCRIPTFULLFLDRPATH=${SCRIPTFULLFLDRPATH}; fi
-#____	if [ "${SCRIPTFLDR_RELATIVE}" != "." ]; then
-#____	fi
 
-ORGASUXHOME=${SCRIPTFULLFLDRPATH}			### /mnt/development/src/org.ASUX/AWS/CFN/bin
-ORGASUXHOME="$(dirname "$ORGASUXHOME")"		### /mnt/development/src/org.ASUX/AWS/CFN
-ORGASUXHOME="$(dirname "$ORGASUXHOME")"		### /mnt/development/src/org.ASUX/AWS
-ORGASUXHOME="$(dirname "$ORGASUXHOME")"		### /mnt/development/src/org.ASUX
-if [ "${VERBOSE}" == "1" ]; then echo ORGASUXHOME=${ORGASUXHOME}; fi
 
+### Attention !!!!!!!!! SCRIPTFULLFLDRPATH must be set .. before sourcing/including '{SCRIPTFULLFLDRPATH}/../../bin.common.sh'
 .   ${SCRIPTFULLFLDRPATH}/common.sh
+
+###=============================================================
+###@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+###=============================================================
+
+echo "!!!  !!! The OLD script is deprecated.   Pay attention!!! instructions coming below .."; echo ''
+sleep 3
+
+echo "We now will take advantage of the STANDARDIZATION that AWS now has finalized."
+echo "We lookup EC2 AMIs for AMZN2Linux using the LookupKey=amzn2-ami-hvm-x86_64-gp2"
+echo ''
+echo "https://aws.amazon.com/blogs/compute/query-for-the-latest-amazon-linux-ami-ids-using-aws-systems-manager-parameter-store/"
+echo "WEB PAGE TITLE: Query for the latest Amazon Linux AMI IDs using AWS Systems Manager Parameter Store"
+echo ''
+		### !! Note !! That value of this variable is __CONFIRMED__ by another script.
+		###			AWS/CFN/bin/AWS-AMI-list-by-Region.sh         <AWSRegion>
+		###	!! Note !! In the output of the above command .. !!!!!!! Remove the VERSION#.DATE !!!!!!!! from the middle of the AMI-TYPE, to get the EC2AMI_LookupKey
+		###	Example:  amzn2-ami-hvm-2.0.20190618-x86_64-gp2   --> becomes --> amzn2-ami-hvm-x86_64-gp2
+
+
+
+
+
+
+exit 1
+
+
+
+
 
 ###=============================================================
 ###@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
