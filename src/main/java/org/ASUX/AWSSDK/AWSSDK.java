@@ -34,6 +34,7 @@ package org.ASUX.AWSSDK;
 
 import org.ASUX.common.Macros;
 import org.ASUX.common.Tuple;
+import org.ASUX.common.Inet;
 
 import org.ASUX.yaml.JSONTools;
 import org.ASUX.yaml.YAML_Libraries;
@@ -117,6 +118,16 @@ import com.amazonaws.services.ec2.model.DeleteKeyPairResult;
 import com.amazonaws.services.ec2.model.DescribeKeyPairsRequest;
 import com.amazonaws.services.ec2.model.DescribeKeyPairsResult;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html#describeSubnets--
+import com.amazonaws.services.ec2.model.Subnet;
+// import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html#describeSecurityGroups--
+import com.amazonaws.services.ec2.model.SecurityGroup;
+// import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/IpPermission.html
+import com.amazonaws.services.ec2.model.IpPermission; // represents the IP port associated with a SecurityGroup (see above)
 // import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
 // import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 // import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -128,6 +139,7 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 // import com.amazonaws.services.ec2.model.StartInstancesRequest;
 // import com.amazonaws.services.ec2.model.StopInstancesRequest;
 // import com.amazonaws.services.ec2.model.UnmonitorInstancesRequest;
+
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listResourceRecordSets-com.amazonaws.services.route53.model.ListResourceRecordSetsRequest-
 import com.amazonaws.services.route53.AmazonRoute53;
 import com.amazonaws.services.route53.AmazonRoute53Client;
@@ -362,7 +374,7 @@ public class AWSSDK {
      * @return either Null (if No IGWs are __ASSOCIATED__ with the _myVPC argument), or the ID of the 1st IGW associated with your _myVPC
      */
     public String getIGWForVPC( final String _regionStr, final String _myVPC ) {
-        final String HDR = CLASSNAME +"getAWSIGWs("+ _regionStr +","+ _myVPC +"): ";
+        final String HDR = CLASSNAME +": getIGWs("+ _regionStr +","+ _myVPC +"): ";
         assertTrue( _regionStr != null);
         assertTrue( _myVPC != null );
 
@@ -377,9 +389,9 @@ public class AWSSDK {
         showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
 
         for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
-            System.err.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
+            if ( this.verbose )  System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
             for ( InternetGatewayAttachment attachment : igw.getAttachments() ) {
-                System.err.println( HDR +"FYI: IGW ID#"+ igw.getInternetGatewayId() +" is currently attached to VPC ID# "+ attachment.getVpcId() );
+                if ( this.verbose ) System.out.println( HDR +"FYI: IGW ID#"+ igw.getInternetGatewayId() +" is currently attached to VPC ID# "+ attachment.getVpcId() );
                 if ( attachment.getVpcId().equals( _myVPC ) ) {
                     return igw.getInternetGatewayId();
                 } // if
@@ -390,12 +402,13 @@ public class AWSSDK {
     }
 
     /**
-     * Given a AWS-Region, this method looks up _ALL_ IGWs (in your account for _THAT_ region)
-     * @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
-     * @return either __EMPTY_ list (if No IGWs are __ASSOCIATED__ with the region)..  or, one ore more KV-PAIRS(IGWID,VPCID).  Guaranteed to be NotNull
+     *  Given a AWS-Region, this method looks up _ALL_ IGWs (in your account for _THAT_ region)
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _bUnassociated true if you need a IGW that is NOT associated with ANY VPC; False otherwise.
+     *  @return either __EMPTY_ list (if No IGWs are __ASSOCIATED__ with the region)..  or, one ore more KV-PAIRS(IGWID,VPCID).  Guaranteed to be NotNull
      */
-    public ArrayList< Tuple<String,String> >  getIGWs( final String _regionStr ) {
-        final String HDR = CLASSNAME +"getAWSIGWs("+ _regionStr +"): ";
+    public ArrayList< Tuple<String,String> >  getIGWs( final String _regionStr, final boolean _bUnassociated ) {
+        final String HDR = CLASSNAME +": getIGWs("+ _regionStr +"): ";
         assertTrue( _regionStr != null);
         if ( this.offline ) {
             final ArrayList< Tuple<String,String> >   r = new ArrayList<>();
@@ -412,11 +425,22 @@ public class AWSSDK {
         showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
 
         for( InternetGateway igw : igwGWResult.getInternetGateways() ) {
-            if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. Checking, whether it belongs to my VPC.." );
-            for ( InternetGatewayAttachment attachment : igw.getAttachments() ) {
+            if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +".. .. It is attached to "+ igw.getAttachments().size() +" VPCs." );
+            for ( InternetGatewayAttachment attachment : igw.getAttachments() ) { // This loop is just for debugging purposes only!
                 if ( this.verbose ) System.out.println( HDR +"IGW ID#"+ igw.getInternetGatewayId() +" is attached to VPC ID# "+ attachment.getVpcId() );
-                arr.add( new Tuple<String,String>( igw.getInternetGatewayId(), attachment.getVpcId() ) );
-            } // INNER For-loop
+            }
+            if ( _bUnassociated ) {
+                if ( igw.getAttachments().size() <= 0 ) {
+                    arr.add( new Tuple<String,String>( igw.getInternetGatewayId(), UNATTACHED_IGW ) );
+                } else {
+                    if ( this.verbose ) System.out.println( HDR +"Skipping VPC ID# "+ igw.getInternetGatewayId() +" .. because it is ATTACHED to another VPC already" );
+                    continue; // This is _NOT_ an un-attached IGW.
+                }
+            } else {
+                for ( InternetGatewayAttachment attachment : igw.getAttachments() ) {
+                    arr.add( new Tuple<String,String>( igw.getInternetGatewayId(), attachment.getVpcId() ) );
+                } // For-loop
+            } // if-else
         } // OUTER For-loop
 
         return arr;
@@ -635,6 +659,34 @@ public class AWSSDK {
         return this.convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
     }
 
+    /**
+     *  <p>An offline implementation (substituting for {@link #getSubnets(String, String, String)} does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
+     *  Get the list of Subnet-ID for _ALL_ the subnets in _ALL_ VPCs (incl. default)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _PublicOrPrivate whether a public or private subnet EC2 instance (String value is case-sensitive.  Exact allowed values are: 'Public' 'Private')
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files 
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getSubnets_Offline( final String _regionStr, final String _VPCID, final String _PublicOrPrivate ) throws Exception {
+        final String YAMLFile = getOfflineFolderPath() +"/Subnetdetails"+ _PublicOrPrivate +"-"+ this.getLocation( _regionStr ) +".yaml";
+        return this.convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
+    }
+
+    /**
+     *  <p>An offline implementation (substituting for {@link #getSGs(String, String, String)} that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
+     *  Get the list of SG-ID for _ALL_ the Security-Groups in _ALL_ VPCs (incl. default)
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _portOfInterest whether "ssh", "rdp", .. (String value is case-sensitive)
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files 
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getSGs_Offline( final String _regionStr, final String _VPCID, final String _portOfInterest ) throws Exception {
+        final String YAMLFile = getOfflineFolderPath() +"/SGdetails"+ _portOfInterest +"-"+ this.getLocation( _regionStr ) +".yaml";
+        return this.convNode2ArrayOfMaps( this.readYamlFile( YAMLFile ) );
+    }
+
     //==============================================================================
     /**
      *  An offline implementation (substituting for {@link #getAZs(String)}), that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in {getOfflineFolderPath() folder.
@@ -760,8 +812,11 @@ public class AWSSDK {
 
     //==============================================================================
     public static final String VPC_ISDEFAULT = "isDefault";
-    public static final String VPC_ID = "VPCID";
-    public static final String VPC_CIDRBLOCK = "CIDRBlock";
+    public static final String VPC_ID = "VPC-ID";
+    public static final String SUBNET_ID = "SUBNET-ID";
+    public static final String SG_ID = "SG-ID";
+    public static final String CIDRBLOCK = "CIDR-Block";
+    public static final String UNATTACHED_IGW = "Un-attached-IGW";
     //==============================================================================
 
     /**
@@ -771,7 +826,8 @@ public class AWSSDK {
      *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
      *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
      */
-    public ArrayList< LinkedHashMap<String,Object> > getVPCs( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+    public ArrayList< LinkedHashMap<String,Object> > getVPCs( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception
+    {   final String HDR = CLASSNAME +"getVPCs("+ _regionStr +","+ _onlyNonDefaultVPC +"): ";
         if ( this.offline ) return getVPCs_Offline( _regionStr, _onlyNonDefaultVPC );
 
         final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
@@ -787,7 +843,7 @@ public class AWSSDK {
         showProgressbar( false, ProgressBarMileStones.STARTING, "getVPCs" );
         for( com.amazonaws.services.ec2.model.Vpc vpc : vpclist_response.getVpcs()) {
             showProgressbar( false, ProgressBarMileStones.INPROGRESS, "getVPCs" );
-            if ( this.verbose) System.out.printf( "Found VPC ID=%s with CIDRBlock=%s", vpc.getVpcId(), vpc.getCidrBlock() );
+            if ( this.verbose) System.out.printf( "%s looking at VPC ID=%s with CIDRBlock=%s\n", HDR, vpc.getVpcId(), vpc.getCidrBlock() );
             if ( vpc.isDefault() ) {
                 if ( this.verbose) System.out.println( " - is DEFAULT VPC" ); 
                 if ( _onlyNonDefaultVPC )
@@ -800,7 +856,7 @@ public class AWSSDK {
             // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Vpc.html
             ix.put ( VPC_ISDEFAULT, vpc.isDefault() );
             ix.put ( VPC_ID,        vpc.getVpcId() );
-            ix.put ( VPC_CIDRBLOCK, vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
+            ix.put ( CIDRBLOCK,     vpc.getCidrBlock() );    // The primary IPv4 CIDR block for the VPC.
             // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
             showProgressbar( true, ProgressBarMileStones.STARTING, null );
             final List<com.amazonaws.services.ec2.model.Tag>	tags = vpc.getTags();
@@ -816,6 +872,129 @@ public class AWSSDK {
         return retarr;
     }
 
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  Get the list of Subnets (and all their details) for a given VPC
+     *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _PublicOrPrivate whether a public or private subnet EC2 instance (String value is case-sensitive.  Exact allowed values are: 'Public' 'Private')
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-subnets --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getSubnets( final String _regionStr, final String _VPCID, final String _PublicOrPrivate ) throws Exception
+    {   final String HDR = CLASSNAME +"getSubnets("+ _regionStr +","+ _VPCID +","+ _PublicOrPrivate +"): ";
+        if ( this.offline ) return getSubnets_Offline( _regionStr, _VPCID, _PublicOrPrivate );
+
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
+        showProgressbar( false, ProgressBarMileStones.STARTING, "describeSubnets" );
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html#describeSubnets--
+        final DescribeSubnetsResult subnetlist_response = ec2.describeSubnets();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
+        final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList<>();
+
+        showProgressbar( false, ProgressBarMileStones.STARTING, "getSubnets" );
+        for( com.amazonaws.services.ec2.model.Subnet subnet : subnetlist_response.getSubnets() ) {
+            showProgressbar( false, ProgressBarMileStones.INPROGRESS, "getSubnets" );
+            if ( this.verbose) System.out.printf( "%s looking at Subnet ID=%s in VPC-ID=%s with CIDRBlock=%s\n", HDR, subnet.getVpcId(), subnet.getSubnetId(), subnet.getCidrBlock() );
+            if ( this.verbose) System.out.println( subnet.toString() );
+            if (   !   subnet.getVpcId().equals( _VPCID ) )
+                continue;
+
+            final LinkedHashMap<String,Object> ix = new LinkedHashMap<String,Object>();
+            // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Subnet.html
+            ix.put ( SUBNET_ID, subnet.getSubnetId() );
+            ix.put ( VPC_ID,    subnet.getVpcId() );
+            ix.put ( CIDRBLOCK, subnet.getCidrBlock() );    // The  IPv4 CIDR block for the SUBNET.  NOT vpc!
+            ix.put ( "AZ",      subnet.getAvailabilityZoneId() );
+            ix.put ( "DefaultForAZ", ""+subnet.isDefaultForAz() ); // whether this is the default subnet for the Availability Zone.
+            // subnet.getAvailableIpAddressCount() // The number of unused private IPv4 addresses in the subnet.
+            // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
+            showProgressbar( true, ProgressBarMileStones.STARTING, null );
+            final List<com.amazonaws.services.ec2.model.Tag>	tags = subnet.getTags();
+            showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
+            for ( com.amazonaws.services.ec2.model.Tag tag: tags ) {
+                ix.put( tag.getKey(), tag.getValue() );
+            }
+            retarr.add( ix );
+        }
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, "getSubnets" );
+        return retarr;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  Get the list of SG-ID for _ALL_ the Security-Groups in _ALL_ VPCs (incl. default)
+     *  @param _regionStr NotNull.  Pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _VPCID NotNull, An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _portOfInterest NotNull whether "ssh", "rdp", .. (String value is case-sensitive)
+     *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
+     *  @throws Exception thrown if any issues reading the cached YAML files 
+     */
+    public ArrayList< LinkedHashMap<String,Object> > getSGs( final String _regionStr, final String _VPCID, final String _portOfInterest ) throws Exception
+    {   final String HDR = CLASSNAME +"getSGs("+ _regionStr +","+ _VPCID +","+ _portOfInterest +"): ";
+        if ( this.offline ) return getSubnets_Offline( _regionStr, _VPCID, _portOfInterest );
+
+        final AmazonEC2 ec2 = this.getAWSEC2Hndl( _regionStr );
+        showProgressbar( false, ProgressBarMileStones.STARTING, "describeSGs" );
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html#describeSecurityGroups--
+        final DescribeSecurityGroupsResult sglist_response = ec2.describeSecurityGroups();
+        showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
+        final ArrayList< LinkedHashMap<String,Object> > retarr = new ArrayList<>();
+        final Inet inet = new Inet( this.verbose );
+
+        showProgressbar( false, ProgressBarMileStones.STARTING, "getSGs" );
+        for( com.amazonaws.services.ec2.model.SecurityGroup sg : sglist_response.getSecurityGroups() ) {
+            showProgressbar( false, ProgressBarMileStones.INPROGRESS, "getSGs" );
+            if ( this.verbose) System.out.printf( "%s looking at SG ID=%s in VPC-ID=%s with Name=%s\n", HDR, sg.getVpcId(), sg.getGroupId(), sg.	getGroupName() );
+            if ( this.verbose) System.out.println( sg.toString() );
+            if (   !   sg.getVpcId().equals( _VPCID ) )
+                continue;
+
+            // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/IpPermission.html
+            for ( com.amazonaws.services.ec2.model.IpPermission ipperm: sg.getIpPermissions() ) {
+                if ( this.verbose) System.out.print( HDR +"FromPort="+ ipperm.getFromPort() +", Toport#="+ ipperm.getToPort() +"\t" );
+                if ( ipperm.getFromPort() == null || ipperm.getToPort() == null )
+                    continue;
+                final String fromPortStr = inet.getNameForPortNumber( ipperm.getFromPort()  );
+                final String toPortStr   = inet.getNameForPortNumber( ipperm.getToPort()    );
+                if ( this.verbose) System.out.print( HDR +"FromPort="+ fromPortStr +", Toport#="+ toPortStr +"\t" );
+
+                if ( fromPortStr != null && toPortStr != null && fromPortStr.equals( _portOfInterest ) && toPortStr.equals( _portOfInterest ) ) {
+                    final LinkedHashMap<String,Object> ix = new LinkedHashMap<String,Object>();
+                    // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Subnet.html
+                    ix.put ( SG_ID,         sg.getGroupId() );
+                    ix.put ( VPC_ID,        sg.getVpcId() );
+                    ix.put ( "FromIPPort",  fromPortStr );
+                    ix.put ( "ToIPPort",    toPortStr );
+                    // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/Tag.html
+                    showProgressbar( true, ProgressBarMileStones.STARTING, null );
+                    final List<com.amazonaws.services.ec2.model.Tag>	tags = sg.getTags();
+                    showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
+
+                    for ( com.amazonaws.services.ec2.model.Tag tag: tags ) {
+                        ix.put( tag.getKey(), tag.getValue() );
+                    }
+                    retarr.add( ix );
+                } // if port matches
+            } // innermost for-loop
+        } // outermost for-loop
+
+        showProgressbar( false, ProgressBarMileStones.COMPLETED, "getSGs" );
+        if ( this.verbose) System.out.println(); // to finish the above print().
+        return retarr;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
     /**
@@ -846,6 +1025,7 @@ public class AWSSDK {
     public static final String KV_STATE     = "State";
     public static final String KV_ZONEREGIONNAME= "RegionName";
     public static final String KV_ZONEMESSAGES  = "Messages";
+    public static final String KV_PUBLICorPRIVATE  = "PublicOrPrivate";
     //==============================================================================
 
     /**
@@ -904,23 +1084,6 @@ public class AWSSDK {
         }
         return retarr;
     }
-
-    //==============================================================================
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    //==============================================================================
-
-    // /**
-    //  * @param _regionStr 
-    //  * @param _VPCID 
-    //  * @param _PublicOrPrivate 
-    //  * @return 
-    //  */
-    // public ArrayList<String> getSubnetIDs( final String _regionStr, final String _VPCID, final String _PublicOrPrivate ) {
-    //     final ArrayList< LinkedHashMap<String,Object> > vpcs = this.getVPCs( _regionStr, false );
-    //     for( LinkedHashMap<String,Object> vpc: vpcs ) {
-
-    //     }
-    // }
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1206,7 +1369,7 @@ public class AWSSDK {
         assocRequest.setVPC( vpc );
         final AssociateVPCWithHostedZoneResult assocRes = Rt53.associateVPCWithHostedZone( assocRequest );
         showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
-        System.err.println( HDR + assocRes );
+        if ( this.verbose ) System.out.println( HDR + assocRes );
         // final ChangeInfo ci = assocRes.getChangeInfo(); // <-- A complex type that describes the changes made to your hosted zone.
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/model/ChangeInfo.html
     }
