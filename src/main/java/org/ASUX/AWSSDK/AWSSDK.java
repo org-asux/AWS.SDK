@@ -140,6 +140,18 @@ import com.amazonaws.services.ec2.model.IpPermission; // represents the IP port 
 // import com.amazonaws.services.ec2.model.StopInstancesRequest;
 // import com.amazonaws.services.ec2.model.UnmonitorInstancesRequest;
 
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/InternetGateway.html
+import com.amazonaws.services.ec2.model.InternetGateway;
+import com.amazonaws.services.ec2.model.DescribeInternetGatewaysRequest;
+import com.amazonaws.services.ec2.model.DescribeInternetGatewaysResult;
+// aws ec2 describe-internet-gateways --query 'InternetGateways[*].InternetGatewayId'   <-- will return ALL known IGW IDs (in that region).  Note! No VPC mentioned!
+
+// https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-s3-objects.html
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listResourceRecordSets-com.amazonaws.services.route53.model.ListResourceRecordSetsRequest-
 import com.amazonaws.services.route53.AmazonRoute53;
 import com.amazonaws.services.route53.AmazonRoute53Client;
@@ -156,12 +168,6 @@ import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClientB
 import com.amazonaws.services.identitymanagement.model.GetUserResult; // for getUser()  // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/model/GetUserResult.html
 import com.amazonaws.services.identitymanagement.model.User; // user.getArn() and user.getCreateDate()/java.util.Data and user.getTags() and user.getUserId() and user.getUserName()/Friendly-username
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/identitymanagement/model/User.html
-
-// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/InternetGateway.html
-import com.amazonaws.services.ec2.model.InternetGateway;
-import com.amazonaws.services.ec2.model.DescribeInternetGatewaysRequest;
-import com.amazonaws.services.ec2.model.DescribeInternetGatewaysResult;
-// aws ec2 describe-internet-gateways --query 'InternetGateways[*].InternetGatewayId'   <-- will return ALL known IGW IDs (in that region).  Note! No VPC mentioned!
 
 import static org.junit.Assert.*;
 
@@ -467,8 +473,9 @@ public class AWSSDK {
 
     //--------------------
     private static boolean  bNeverRan_getAWSHOME = true;
+
     /**
-     *  If the folder represeted by the returned value does Not exist, you'll get a __RUNTIME__ exception (org.junit.Assert.AssertionError)
+     *  If the folder represented by the returned value does Not exist, you'll get a __RUNTIME__ exception (org.junit.Assert.AssertionError)
      *  @return a NotNull path like ~/github.com/org.ASUX/AWS (assuming your installed org.ASUX project at ~/github.com/org.ASUX);  Note: this will never be Null.
      */
     public static final String getAWSHOME() {
@@ -479,6 +486,22 @@ public class AWSSDK {
             AWSSDK.bNeverRan_getAWSHOME = false;
         }
         return awshome;
+    }
+
+    private static boolean  bNeverRan_getAWSSDKHOME = true;
+
+    /**
+     *  If the folder represented by the returned value does Not exist, you'll get a __RUNTIME__ exception (org.junit.Assert.AssertionError)
+     *  @return a NotNull path like ~/github.com/org.ASUX/AWS/AWS-SDK (assuming your installed org.ASUX project at ~/github.com/org.ASUX);  Note: this will never be Null.
+     */
+    public static final String getAWSSDKHOME() {
+        final String awssdkhome = getAWSHOME() +"/AWS-SDK";
+        if ( AWSSDK.bNeverRan_getAWSSDKHOME ) {
+            final File fObj = new File( awssdkhome );
+            assertTrue( fObj.exists() && fObj.canRead() );
+            AWSSDK.bNeverRan_getAWSSDKHOME = false;
+        }
+        return awssdkhome;
     }
 
     private static boolean  bNeverRan_getOfflineFolderPath = true;
@@ -575,8 +598,8 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
-    public static final String REGION2LOCATIONMAPPING = getAWSHOME()  +"/config/AWSRegionsLocations.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSREGIONSLOCATIONS );
-    public static final String LOCATION2REGIONMAPPING = getAWSHOME()  +"/config/AWSLocationsRegions.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSLOCATIONSREGIONS );
+    public static final String REGION2LOCATIONMAPPING = getAWSSDKHOME()  +"/config/AWSRegionsLocations.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSREGIONSLOCATIONS );
+    public static final String LOCATION2REGIONMAPPING = getAWSSDKHOME()  +"/config/AWSLocationsRegions.properties"; // + org.ASUX.AWS.CFN.EnvironmentParameters.AWSLOCATIONSREGIONS );
 
     private boolean bNeverRan_RegionLookup = true;
     private boolean bNeverRan_LocationLookup = true;
@@ -663,7 +686,7 @@ public class AWSSDK {
      *  <p>An offline implementation (substituting for {@link #getSubnets(String, String, String)} does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
      *  Get the list of Subnet-ID for _ALL_ the subnets in _ALL_ VPCs (incl. default)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
-     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#REGEXP_AWSID_SUFFIX}.  This method checks against that rule.
      *  @param _PublicOrPrivate whether a public or private subnet EC2 instance (String value is case-sensitive.  Exact allowed values are: 'Public' 'Private')
      *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
      *  @throws Exception thrown if any issues reading the cached YAML files 
@@ -677,7 +700,7 @@ public class AWSSDK {
      *  <p>An offline implementation (substituting for {@link #getSGs(String, String, String)} that does _NOT_ make api API calls to AWS's SDK.  Instead it looks up cached-files in getOfflineFolderPath() folder.</p>
      *  Get the list of SG-ID for _ALL_ the Security-Groups in _ALL_ VPCs (incl. default)
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
-     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#REGEXP_AWSID_SUFFIX}.  This method checks against that rule.
      *  @param _portOfInterest whether "ssh", "rdp", .. (String value is case-sensitive)
      *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
      *  @throws Exception thrown if any issues reading the cached YAML files 
@@ -879,7 +902,7 @@ public class AWSSDK {
     /**
      *  Get the list of Subnets (and all their details) for a given VPC
      *  @param _regionStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
-     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _VPCID An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#REGEXP_AWSID_SUFFIX}.  This method checks against that rule.
      *  @param _PublicOrPrivate whether a public or private subnet EC2 instance (String value is case-sensitive.  Exact allowed values are: 'Public' 'Private')
      *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-subnets --region ap-northeast-1 --profile ______
      *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
@@ -933,7 +956,7 @@ public class AWSSDK {
     /**
      *  Get the list of SG-ID for _ALL_ the Security-Groups in _ALL_ VPCs (incl. default)
      *  @param _regionStr NotNull.  Pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
-     *  @param _VPCID NotNull, An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#AWSID_REGEXP_SUFFIX}.  This method checks against that rule.
+     *  @param _VPCID NotNull, An ID in AWS (whether VPC, subnet, SG, EC2...) === prefix('vpc-', 'subnet-', ..) + a hexadecimal suffix {@link org.ASUX.AWSSDK.AWSSDK#REGEXP_AWSID_SUFFIX}.  This method checks against that rule.
      *  @param _portOfInterest NotNull whether "ssh", "rdp", .. (String value is case-sensitive)
      *  @return An NotNull array of KV-pairs.  Its exactly === cmdline output of: aws ec2 describe-vpcs --region ap-northeast-1 --profile ______
      *  @throws Exception thrown if any issues reading the cached YAML files 
@@ -1132,7 +1155,7 @@ public class AWSSDK {
         final String HDR = CLASSNAME +"createKeyPairEC2("+ _regionStr +","+ _MySSHKeyName +"): ";
         if ( this.offline ) {
             System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
-            return "__OFFLINE_MODE - AWS.SDK PROJECT - createKeyPairEC2()";
+            return "--offline MODE of AWS.SDK PROJECT:-- createKeyPairEC2()";
         }
 
         // https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/java/example_code/ec2/src/main/java/aws/example/ec2/CreateKeyPair.java
@@ -1302,7 +1325,7 @@ public class AWSSDK {
         if ( this.offline ) {
             System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
             // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
-            return "__OFFLINE_MODE - AWS.SDK PROJECT - getHostedZoneId()";
+            return "--offline MODE of AWS.SDK PROJECT:-- getHostedZoneId()";
         }
 
         final AmazonRoute53 Rt53 = this.getAWSRoute53Hndl( _regionStr );
@@ -1377,20 +1400,27 @@ public class AWSSDK {
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
-    public static final String AWSID_REGEXP_SUFFIX = "([0-9][a-f][A-F])+";
+
+    public static final String REGEXP_AWSID_SUFFIX = "([0-9][a-f][A-F])+";
+    public static final String REGEXP_AWSREGIONNAME = "[a-zA-Z]+-[a-zA-Z]+-[0-9]";
+    public static final String REGEXP_AWSREGIONNAME_WSPACES = "^\\s*("+REGEXP_AWSREGIONNAME+")\\s*$";
+    public static final String REGEXP_S3BUCKETNAME_CHARS = "[0-9a-z][-0-9a-z\\.]";   // Lower-case ONLY.  start with a lowercase letter or number.
+    public static final String REGEXP_S3BUCKETNAME = "^\\s*("+REGEXP_S3BUCKETNAME_CHARS+"+)\\s*$";   // Lower-case ONLY.  start with a lowercase letter or number.
+    public static final String REGEXP_S3BUCKETNAME_HASREGIONID = "^\\s*("+REGEXP_S3BUCKETNAME_CHARS+"+)@("+REGEXP_AWSREGIONNAME+")\\s*$"; // Per AWS Spec, Bucket-ID can only contain Alphanumerics, Dash, Period (and other rules)
 
     //==============================================================================
+
     /**
-     *  <p>ALL IDs in AWS (whether VPC, subnet, SG, EC2...) have a prefix + a hexadecimal suffix {@link #AWSID_REGEXP_SUFFIX}.  This method checks against that rule.</p>
+     *  <p>ALL IDs in AWS (whether VPC, subnet, SG, EC2...) have a prefix + a hexadecimal suffix {@link #REGEXP_AWSID_SUFFIX}.  This method checks against that rule.</p>
      *  <p>This is a very useful method, to use to pre-check user-input, before invoking AWS SDK API calls</p>
      *  @param _IDStr a NotNull string representing am IOD in AWS (whether VPC, subnet, SG, EC2...)
      *  @param _musthavePrefix (for VPCs, pass in "vpc") (for Subnets, pass in "subnet") (for SGs, pass in "sg") (for EC2 instances, pass in "i") etc..
      *  @return true if it string matches the REGEXP pattern rule.
      */
     public boolean isValidAWSID( final String _IDStr, final String _musthavePrefix )
-    {   final String HDR = CLASSNAME +" Constructor: ";
+    {   final String HDR = CLASSNAME +" isValidAWSID("+ _IDStr +","+ _musthavePrefix +"): ";
 
-        final String pattStr = "^"+ _musthavePrefix + AWSID_REGEXP_SUFFIX + "$";
+        final String pattStr = "^"+ _musthavePrefix + REGEXP_AWSID_SUFFIX + "$";
         try {
             final Pattern pattern_AWSID = Pattern.compile( pattStr );
             final Matcher matcher = pattern_AWSID.matcher( _IDStr );
@@ -1404,10 +1434,174 @@ public class AWSSDK {
                 return false;
         }catch(PatternSyntaxException e){
             if ( this.verbose ) e.printStackTrace( System.err );
-            System.err.println( HDR +" Invalid pattern '"+ pattStr +"' provided for _musthavePrefix " );
-            return false; // invalid YAML Path.  Let "this.isValid" stay as false
+            System.err.println( HDR +" Invalid pattern '"+ pattStr +"' provided, that incorporates '_musthavePrefix' " );
+            System.exit(441);
+            throw new RuntimeException( e.getMessage() );
+            // return false;
         }
     }
+
+    //==============================================================================
+
+    /**
+     * @param _regionStr a Nullable String
+     * @return true if you know why :-)
+     */
+
+    public boolean isValidAWSRegion( final String _regionStr )
+    {   final String HDR = CLASSNAME +" isValidS3BucketName("+ _regionStr +"): ";
+        if ( _regionStr == null ) return false;
+
+        try {
+            final Pattern pattern_AWSID = Pattern.compile( REGEXP_AWSREGIONNAME_WSPACES );
+            final Matcher matcher = pattern_AWSID.matcher( _regionStr );
+            if ( matcher.find() ) {
+                if ( this.verbose ) System.out.println( HDR +"I found the text "+ matcher.group() +" starting at index "+  matcher.start() +" and ending at index "+ matcher.end() );
+                try {
+                    if ( this.getLocation( _regionStr ) == null ) return false; // EXAMPLE: 'us-east-1' comes back as 'Virginia'.  Invalid _regionStr will come back as NULL.
+                } catch( Exception e ) {
+                    return false; // If we are here, we have SERIOUS internal failure, while reading the file: config/AWSRegionsLocations.properties
+                }
+                if ( this.verbose ) System.out.println( HDR +"Confirmed: "+ _regionStr +" is a valid AWS REGION" );
+                return true;
+            } else 
+                return false;
+        }catch(PatternSyntaxException e){
+            if ( this.verbose ) e.printStackTrace( System.err );
+            System.err.println( HDR +" Invalid pattern '"+ REGEXP_AWSREGIONNAME_WSPACES +"' in code!" );
+            System.exit(441);
+            throw new RuntimeException( e.getMessage() );
+            // return false;
+        }
+    }
+
+    //==============================================================================
+
+    /**
+     * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html">See AWS Rules on bucket names</a>
+     * @param _s3bucketname a Nullable String
+     * @return true if AWS will accept the bucketname.
+     */
+    public boolean isValidS3BucketName( final String _s3bucketname )
+    {   final String HDR = CLASSNAME +" isValidS3BucketName("+ _s3bucketname +"): ";
+        if ( _s3bucketname == null ) return false;
+
+        try {
+            final Pattern pattern_AWSID = Pattern.compile( REGEXP_S3BUCKETNAME );
+            final Matcher matcher = pattern_AWSID.matcher( _s3bucketname );
+            if ( matcher.find() ) {
+                if ( this.verbose ) System.out.println( HDR +"I found the text "+ matcher.group() +" starting at index "+  matcher.start() +" and ending at index "+ matcher.end() );
+                if ( _s3bucketname.contains("--") ) return false;
+                if ( this.verbose ) System.out.println( HDR +"Confirmed: "+ _s3bucketname +" is a valid AWS S3 bucketname" );
+                return true;
+            } else 
+                return false;
+        }catch(PatternSyntaxException e){
+            if ( this.verbose ) e.printStackTrace( System.err );
+            System.err.println( HDR +" Invalid pattern '"+ REGEXP_S3BUCKETNAME +"' in code " );
+            System.exit(441);
+            throw new RuntimeException( e.getMessage() );
+            // return false;
+        }
+    }
+
+    //==============================================================================
+
+    /**
+     *  <p>__IF__ the _S3BucketName is of the form "bucketname@eu-west-1" (Not AWS-Compliant), this method returns the pair "bucketname" + "eu-west-1".</p>
+     *  <p>__IF__ the _S3BucketName is a fully-compliant AWS-bucketname, this method returns the pair "bucketname" and ""(empty-String).</p>
+     *  @param _S3Bucketname NotNull String.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @return NotNull pair consisting of a NotNull-BucketName and a NotNull-RegionName (empty-string is possible)
+     */
+    public Tuple<String,String> parseS3Bucketname( final String _S3Bucketname )
+    {   final String HDR = CLASSNAME +" parseS3Bucketname("+ _S3Bucketname +"): ";
+        if ( _S3Bucketname == null )
+            return new Tuple<String,String>( null, null );
+        String correctRegionID = "";
+        String properBucketName = _S3Bucketname;
+        try {
+            final Pattern pattern = Pattern.compile( REGEXP_S3BUCKETNAME_HASREGIONID );
+            final Matcher matcher = pattern.matcher( _S3Bucketname );
+            if ( matcher.find() ) {
+                if ( this.verbose ) System.out.println( HDR +"I found the text "+ matcher.group() +" starting at index "+  matcher.start() +" and ending at index "+ matcher.end() );
+                properBucketName = matcher.group(1);
+                correctRegionID = matcher.group(2);
+                if ( this.verbose ) System.out.println( HDR +"Confirmed: RegionID was specified as "+ correctRegionID +" for the S3-bucket ("+ properBucketName +")" );
+                return new Tuple<String,String>( properBucketName, correctRegionID );
+            } // inner IF
+            return new Tuple<String,String>( _S3Bucketname, "" );
+
+        } catch (PatternSyntaxException e) {
+			e.printStackTrace(System.err); // too serious an internal-error.  Immediate bug-fix required.  The application/Program will exit .. in 2nd line below.
+			System.err.println( HDR + ": Unexpected Internal ERROR, while checking for pattern ("+ REGEXP_S3BUCKETNAME_HASREGIONID +")." );
+            System.exit(491); // This is a serious failure. Shouldn't be happening.
+            throw e;
+        }
+    }
+
+    /**
+     *  <p>The simplest method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
+     *  <p>This method will attempt to 'validate' the file-path, as well as "correct" the _regionStr if the _S3BucketName is of the form "bucketname@eu-west-1".</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _S3Bucketname NotNull String.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @param _S3ObjectName can be Null. If Null, then will use <code>_filepath.getFileName()</code>
+     *  @param _filepathString NotNull
+     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
+     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
+     */
+    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final String _filepathString ) throws Exception
+    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepathString.toString() +"): ";
+        final Path path = FileSystems.getDefault().getPath( _filepathString );
+        final Tuple<String,String> tuple = this.parseS3Bucketname( _S3Bucketname ); // splits "bucketname@eu-west-1" into 'bucketname' & 'eu-west-1'
+        final String properBucketName = tuple.key;
+        final String correctRegionID = "".equals(tuple.val) ? _regionStr : tuple.val;
+        if ( path.toFile().exists() )
+            return S3put( correctRegionID, properBucketName, _S3ObjectName, path );
+        else
+            throw new Exception( "File "+ _filepathString +" does Not exist!   FYI: Java's current-working-directory="+ System.getProperty("user.dir") );
+    }
+
+    /**
+     *  <p>See also {@link #S3put(String, String, String, String)} whose 3rd argument is a java.lang.String (for file-path).  This method does NOT validate the file-path, unlike the polyorphic variant.</p>
+     *  <p>Use this method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _S3Bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @param _S3ObjectName can be Null. If Null, then will substitute with <code>_filepath.getFileName()</code>
+     *  @param _filepath NotNull
+     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
+     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
+     */
+    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final Path _filepath ) throws Exception
+    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepath.toString() +"): ";
+        final String S3ObjNm = ( _S3ObjectName != null ? _S3ObjectName : _filepath.getFileName().toString() );
+        final String S3URL = "s3://"+ _S3Bucketname +"/"+ S3ObjNm;
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
+            return "--offline MODE of AWS.SDK PROJECT:- S3put() for "+ S3URL;
+        }
+
+        // System.out.format("Uploading %s to S3 bucket %s...\n", file_path, bucket_name);
+        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            showProgressbar( false, ProgressBarMileStones.STARTING, "s3.putObject" );
+            s3.putObject( _S3Bucketname, S3ObjNm, new File( _filepath.toString() ) );
+            showProgressbar( false, ProgressBarMileStones.COMPLETED, "s3.putObject" );
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+            if ( this.verbose ) System.err.println( HDR + "Failed to upload file into new object." );
+            throw new Exception( "Failed to upload "+ _filepath.toString() +" into S3-URL "+ S3URL );
+        }
+        return S3URL;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
