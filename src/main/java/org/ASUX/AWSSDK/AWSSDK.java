@@ -79,6 +79,12 @@ import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.error.Mark; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/error/Mark.java
 import org.yaml.snakeyaml.DumperOptions; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/DumperOptions.java
 
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/AmazonServiceException.html
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/AmazonClientException.html
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/SdkClientException.html
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.SdkClientException;
 
 // https://github.com/eugenp/tutorials/tree/master/aws/src/main/java/com/baeldung
 // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
@@ -147,7 +153,6 @@ import com.amazonaws.services.ec2.model.DescribeInternetGatewaysResult;
 // aws ec2 describe-internet-gateways --query 'InternetGateways[*].InternetGatewayId'   <-- will return ALL known IGW IDs (in that region).  Note! No VPC mentioned!
 
 // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-s3-objects.html
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -1112,6 +1117,183 @@ public class AWSSDK {
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
 
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    // *  @throws Exception if any errors with the bucket-name, SDK-invocation or AWS-API invocation failures
+
+    /**
+     *  <p>Simpler version of {@link #doesBucketExist(String, String)}. Whether anyone on this planet has created a bucket with this name.</p>
+     *  @param _s3bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @return true if the Bucket exists in some region, whether or NOT you have permissions to it
+     *  @see #isValidS3Bucket(String,String)
+     */
+    public boolean doesBucketExist( final String _s3bucketname ) {
+        return this.doesBucketExist( null, _s3bucketname );
+    }
+
+    //==============================================================================
+
+    // *  @throws Exception if any errors with the bucket-name, SDK-invocation or AWS-API invocation failures
+
+    /**
+     *  <p>Whether anyone on this planet has created a bucket with this name.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _s3bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @return true if the Bucket exists in some region, whether or NOT you have permissions to it
+     *  @see #isValidS3Bucket(String, String)
+     */
+    public boolean doesBucketExist( final String _regionStr, final String _s3bucketname ) {
+        final String HDR = CLASSNAME +"doesBucketExist("+ _s3bucketname +"): ";
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            return s3.doesBucketExistV2( _s3bucketname ); // <<---- Note the 'V2' suffix to the method.
+            // return s3.doesBucketExist( _s3bucketname ); // AWS Documentation says, this relies on headBucket() and is therefore NOT reliable.
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        }
+        if ( this.verbose ) System.err.println( HDR + "Failed to upload file into new object." );
+        // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
+        return false;
+    }
+
+    //==============================================================================
+
+    /**
+     *  <p>Whether __you__ have permissions to this bucket, if it exists in the 1st place.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _s3bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @return true if the Bucket exists in some region + whether you have any permissions allowed on it
+     *  @see #doesBucketExist(String, String)
+     */
+    public boolean isValidS3Bucket( final String _regionStr, final String _s3bucketname ) {
+        final String HDR = CLASSNAME +"isValidS3Bucket("+ _s3bucketname +"): ";
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            boolean bFoundRWAcess = false;
+            final com.amazonaws.services.s3.model.AccessControlList acl = s3.getBucketAcl( _s3bucketname );
+            final List<com.amazonaws.services.s3.model.Grant> grants = acl.getGrantsAsList();
+System.err.println( HDR + "grants has '"+ grants.size() + " entries" );
+            for ( com.amazonaws.services.s3.model.Grant grant: grants ) {
+                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Grantee.html
+                final com.amazonaws.services.s3.model.Grantee grantee = grant.getGrantee();
+                final String granteeId = grantee.getIdentifier();
+                final String typeid = grantee.getTypeIdentifier();
+                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Permission.html
+                // This is an ENUM with valid values: FullControl, Read, Write, ReadAcp, WriteAcp
+                final com.amazonaws.services.s3.model.Permission perm = grant.getPermission();
+                bFoundRWAcess = bFoundRWAcess || ( perm == com.amazonaws.services.s3.model.Permission.Write ) || ( perm == com.amazonaws.services.s3.model.Permission.FullControl );
+                // if ( this.verbose )
+System.err.println( HDR + "granteeId='"+ granteeId + " typeid='"+ typeid + " perm='"+ perm );
+            }
+            return s3.doesBucketExistV2( _s3bucketname ); // <<---- Note the 'V2' suffix to the method.
+        } catch (AmazonServiceException e) {
+            // if ( this.verbose )
+e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            // if ( this.verbose )
+e.printStackTrace( System.err );
+        }
+        if ( this.verbose ) System.err.println( HDR + "Failed to access ACL for bucket!!!!!!!!!" );
+        // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
+        return false;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html#getBucketLocation-java.lang.String-
+    /**
+     *  Gets the geographical region where Amazon S3 stores the specified bucket.
+     *  To view the location constraint of a bucket, the user must be the bucket owner.
+     *  Use Region.fromValue(String) to get the Region enumeration value, but be prepared to handle an IllegalArgumentException if the value passed is not a known Region value.
+     *  Note that Region enumeration values are not returned directly from this method.
+     *  @param _NOT_IMPLEMENTED_ The method is NOT YET implemented!!
+     *  @return a string value that is _NOT_ like "us-east-1".  See above description for details.
+     */
+    public String getBucketLocation( String _NOT_IMPLEMENTED_ ) {
+        return null;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  <p>See also {@link #S3put(String, String, String, String)} whose 3rd argument is a java.lang.String (for file-path).  This method does NOT validate the file-path, unlike the polyorphic variant.</p>
+     *  <p>Use this method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _S3Bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @param _S3ObjectName can be Null. If Null, then will substitute with <code>_filepath.getFileName()</code>
+     *  @param _filepath NotNull
+     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
+     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
+     */
+    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final Path _filepath ) throws Exception
+    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepath.toString() +"): ";
+        final String S3ObjNm = ( _S3ObjectName != null ? _S3ObjectName : _filepath.getFileName().toString() );
+        final String S3URL = "s3://"+ _S3Bucketname +"/"+ S3ObjNm;
+        if ( this.offline ) {
+            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
+            // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
+            return "--offline MODE of AWS.SDK PROJECT:- S3put() for "+ S3URL;
+        }
+
+        // System.out.format("Uploading %s to S3 bucket %s...\n", file_path, bucket_name);
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            showProgressbar( false, ProgressBarMileStones.STARTING, "s3.putObject" );
+            s3.putObject( _S3Bucketname, S3ObjNm, new File( _filepath.toString() ) );
+            showProgressbar( false, ProgressBarMileStones.COMPLETED, "s3.putObject" );
+            return S3URL;
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        }
+        if ( this.verbose ) System.err.println( HDR + "Failed to upload file into new object." );
+        throw new Exception( "Failed to upload "+ _filepath.toString() +" into S3-URL "+ S3URL );
+    }
+
+    //==============================================================================
+
+    /**
+     *  <p>The simplest method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
+     *  <p>This method will attempt to 'validate' the file-path, as well as "correct" the _regionStr if the _S3BucketName is of the form "bucketname@eu-west-1".</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _S3Bucketname NotNull String.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @param _S3ObjectName can be Null. If Null, then will use <code>_filepath.getFileName()</code>
+     *  @param _filepathString NotNull
+     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
+     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
+     */
+    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final String _filepathString ) throws Exception
+    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepathString.toString() +"): ";
+        final Path path = FileSystems.getDefault().getPath( _filepathString );
+        final Tuple<String,String> tuple = this.parseS3Bucketname( _S3Bucketname ); // splits "bucketname@eu-west-1" into 'bucketname' & 'eu-west-1'
+        final String properBucketName = tuple.key;
+        final String correctRegionID = "".equals(tuple.val) ? _regionStr : tuple.val;
+        if ( path.toFile().exists() )
+            return S3put( correctRegionID, properBucketName, _S3ObjectName, path );
+        else
+            throw new Exception( "File "+ _filepathString +" does Not exist!   FYI: Java's current-working-directory="+ System.getProperty("user.dir") );
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
     /**
      *  <p>Given the region, delete the key-pair, with the name provided as the 2nd argument.</p>
      *  <p>You should ideally first call {@link #listKeyPairEC2(String, String)}, to ensure a key-pair with that name does Not already exist.</p>
@@ -1417,8 +1599,8 @@ public class AWSSDK {
      *  @param _musthavePrefix (for VPCs, pass in "vpc") (for Subnets, pass in "subnet") (for SGs, pass in "sg") (for EC2 instances, pass in "i") etc..
      *  @return true if it string matches the REGEXP pattern rule.
      */
-    public boolean isValidAWSID( final String _IDStr, final String _musthavePrefix )
-    {   final String HDR = CLASSNAME +" isValidAWSID("+ _IDStr +","+ _musthavePrefix +"): ";
+    public boolean matchesAWSIDPattern( final String _IDStr, final String _musthavePrefix )
+    {   final String HDR = CLASSNAME +" matchesAWSIDPattern("+ _IDStr +","+ _musthavePrefix +"): ";
 
         final String pattStr = "^"+ _musthavePrefix + REGEXP_AWSID_SUFFIX + "$";
         try {
@@ -1448,8 +1630,8 @@ public class AWSSDK {
      * @return true if you know why :-)
      */
 
-    public boolean isValidAWSRegion( final String _regionStr )
-    {   final String HDR = CLASSNAME +" isValidS3BucketName("+ _regionStr +"): ";
+    public boolean matchesAWSRegionPattern( final String _regionStr )
+    {   final String HDR = CLASSNAME +" matchesAWSRegionPattern("+ _regionStr +"): ";
         if ( _regionStr == null ) return false;
 
         try {
@@ -1482,8 +1664,8 @@ public class AWSSDK {
      * @param _s3bucketname a Nullable String
      * @return true if AWS will accept the bucketname.
      */
-    public boolean isValidS3BucketName( final String _s3bucketname )
-    {   final String HDR = CLASSNAME +" isValidS3BucketName("+ _s3bucketname +"): ";
+    public boolean matchesS3BucketNamePattern( final String _s3bucketname )
+    {   final String HDR = CLASSNAME +" matchesS3BucketNamePattern("+ _s3bucketname +"): ";
         if ( _s3bucketname == null ) return false;
 
         try {
@@ -1511,7 +1693,7 @@ public class AWSSDK {
      *  <p>__IF__ the _S3BucketName is of the form "bucketname@eu-west-1" (Not AWS-Compliant), this method returns the pair "bucketname" + "eu-west-1".</p>
      *  <p>__IF__ the _S3BucketName is a fully-compliant AWS-bucketname, this method returns the pair "bucketname" and ""(empty-String).</p>
      *  @param _S3Bucketname NotNull String.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
-     *  @return NotNull pair consisting of a NotNull-BucketName and a NotNull-RegionName (empty-string is possible)
+     *  @return NotNull pair-of-Strings, consisting of a NotNull-BucketName + a NotNull-RegionName (empty-string is possible, for the 2nd one)
      */
     public Tuple<String,String> parseS3Bucketname( final String _S3Bucketname )
     {   final String HDR = CLASSNAME +" parseS3Bucketname("+ _S3Bucketname +"): ";
@@ -1537,62 +1719,6 @@ public class AWSSDK {
             System.exit(491); // This is a serious failure. Shouldn't be happening.
             throw e;
         }
-    }
-
-    /**
-     *  <p>The simplest method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
-     *  <p>This method will attempt to 'validate' the file-path, as well as "correct" the _regionStr if the _S3BucketName is of the form "bucketname@eu-west-1".</p>
-     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
-     *  @param _S3Bucketname NotNull String.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
-     *  @param _S3ObjectName can be Null. If Null, then will use <code>_filepath.getFileName()</code>
-     *  @param _filepathString NotNull
-     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
-     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
-     */
-    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final String _filepathString ) throws Exception
-    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepathString.toString() +"): ";
-        final Path path = FileSystems.getDefault().getPath( _filepathString );
-        final Tuple<String,String> tuple = this.parseS3Bucketname( _S3Bucketname ); // splits "bucketname@eu-west-1" into 'bucketname' & 'eu-west-1'
-        final String properBucketName = tuple.key;
-        final String correctRegionID = "".equals(tuple.val) ? _regionStr : tuple.val;
-        if ( path.toFile().exists() )
-            return S3put( correctRegionID, properBucketName, _S3ObjectName, path );
-        else
-            throw new Exception( "File "+ _filepathString +" does Not exist!   FYI: Java's current-working-directory="+ System.getProperty("user.dir") );
-    }
-
-    /**
-     *  <p>See also {@link #S3put(String, String, String, String)} whose 3rd argument is a java.lang.String (for file-path).  This method does NOT validate the file-path, unlike the polyorphic variant.</p>
-     *  <p>Use this method to upload a file into the S3 path <code>s3://_S3Bucketname/_S3ObjectName</code></p>
-     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
-     *  @param _S3Bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
-     *  @param _S3ObjectName can be Null. If Null, then will substitute with <code>_filepath.getFileName()</code>
-     *  @param _filepath NotNull
-     *  @return NotNull String === S3 URL to the uploaded Object.  If any errors, Exception will be thrown instead.
-     *  @throws Exception if any errors with the bucket-name, object-name or access-rights
-     */
-    public String S3put( final String _regionStr, final String _S3Bucketname, final String _S3ObjectName, final Path _filepath ) throws Exception
-    {   final String HDR = CLASSNAME +" S3put("+ _S3Bucketname +","+ _filepath.toString() +"): ";
-        final String S3ObjNm = ( _S3ObjectName != null ? _S3ObjectName : _filepath.getFileName().toString() );
-        final String S3URL = "s3://"+ _S3Bucketname +"/"+ S3ObjNm;
-        if ( this.offline ) {
-            System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
-            // throw new Exception( "AWS.SDK failed to find the HostedDomain under the name ''"+ _DNSHostedZoneName + "'" );
-            return "--offline MODE of AWS.SDK PROJECT:- S3put() for "+ S3URL;
-        }
-
-        // System.out.format("Uploading %s to S3 bucket %s...\n", file_path, bucket_name);
-        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
-        try {
-            showProgressbar( false, ProgressBarMileStones.STARTING, "s3.putObject" );
-            s3.putObject( _S3Bucketname, S3ObjNm, new File( _filepath.toString() ) );
-            showProgressbar( false, ProgressBarMileStones.COMPLETED, "s3.putObject" );
-        } catch (AmazonServiceException e) {
-            if ( this.verbose ) e.printStackTrace( System.err );
-            if ( this.verbose ) System.err.println( HDR + "Failed to upload file into new object." );
-            throw new Exception( "Failed to upload "+ _filepath.toString() +" into S3-URL "+ S3URL );
-        }
-        return S3URL;
     }
 
     //==============================================================================
