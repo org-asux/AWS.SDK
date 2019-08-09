@@ -12,7 +12,7 @@
 
     <inceptionYear>2019</inceptionYear>
     <description>Interface to AWS SDK that produces SnakeYAML compatible org.yaml.snakeyaml.nodes.Node data-structures, for further processing by org.ASUX toolset</description>
-	<url>https://github.com/seetamraju/org.ASUX.common</url>
+	<url>https://ASUX.org</url>
 
 	<parent>
 		<groupId>org.asux</groupId>
