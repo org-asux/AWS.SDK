@@ -1178,9 +1178,10 @@ public class AWSSDK {
             boolean bFoundRWAcess = false;
             final com.amazonaws.services.s3.model.AccessControlList acl = s3.getBucketAcl( _s3bucketname );
             final List<com.amazonaws.services.s3.model.Grant> grants = acl.getGrantsAsList();
-System.err.println( HDR + "grants has '"+ grants.size() + " entries" );
+            if ( this.verbose ) System.out.println( HDR + "grants has '"+ grants.size() + " entries" );
             for ( com.amazonaws.services.s3.model.Grant grant: grants ) {
-                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Grantee.html
+                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Grantee.html   <-- this is an Interface
+                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/CanonicalGrantee.html  <-- implementation of Grantee interface
                 final com.amazonaws.services.s3.model.Grantee grantee = grant.getGrantee();
                 final String granteeId = grantee.getIdentifier();
                 final String typeid = grantee.getTypeIdentifier();
@@ -1188,16 +1189,20 @@ System.err.println( HDR + "grants has '"+ grants.size() + " entries" );
                 // This is an ENUM with valid values: FullControl, Read, Write, ReadAcp, WriteAcp
                 final com.amazonaws.services.s3.model.Permission perm = grant.getPermission();
                 bFoundRWAcess = bFoundRWAcess || ( perm == com.amazonaws.services.s3.model.Permission.Write ) || ( perm == com.amazonaws.services.s3.model.Permission.FullControl );
-                // if ( this.verbose )
-System.err.println( HDR + "granteeId='"+ granteeId + " typeid='"+ typeid + " perm='"+ perm );
+                if ( this.verbose ) System.out.println( HDR + "granteeId='"+ granteeId + " typeid='"+ typeid + " perm='"+ perm );
+// S3Bucket(org-asux-aws-cfn): grants has '6 entries
+// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='http://acs.amazonaws.com/groups/global/AllUsers                   typeid='uri perm='READ
+// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='http://acs.amazonaws.com/groups/s3/LogDelivery                    typeid='uri perm='READ
+// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
             }
             return s3.doesBucketExistV2( _s3bucketname ); // <<---- Note the 'V2' suffix to the method.
         } catch (AmazonServiceException e) {
-            // if ( this.verbose )
-e.printStackTrace( System.err );
+            if ( this.verbose ) e.printStackTrace( System.err );
         } catch (AmazonClientException e) {
-            // if ( this.verbose )
-e.printStackTrace( System.err );
+            if ( this.verbose ) e.printStackTrace( System.err );
         }
         if ( this.verbose ) System.err.println( HDR + "Failed to access ACL for bucket!!!!!!!!!" );
         // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
