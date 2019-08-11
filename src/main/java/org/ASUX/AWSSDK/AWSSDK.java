@@ -1507,7 +1507,7 @@ public class AWSSDK {
      *  @return a NotNull string like 'Z2NF71MJ75KYXK' (representing the HostedZoneID as you can see within Route53 domain)
      *  @throws Exception throws InvalidInputException, if input is not valid /or/ throws InvalidDomainNameException, if specified domain name is not valid.
      */
-    public final String getHostedZoneId( final String _regionStr, final String _DNSHostedZoneName, final boolean _needPublicHostedZone ) throws Exception {
+    public final String getRt53HostedZoneId( final String _regionStr, final String _DNSHostedZoneName, final boolean _needPublicHostedZone ) throws Exception {
         final String HDR = CLASSNAME +"getHostedZoneId("+ _regionStr +","+ _DNSHostedZoneName +","+ _needPublicHostedZone +"): ";
         if ( this.offline ) {
             System.err.println( HDR +"AWS.SDK library is running in __OFFLINE__ mode.  So this method is a 'NOOP'!!!!!!!!");
