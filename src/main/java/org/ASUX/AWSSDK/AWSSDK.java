@@ -625,23 +625,54 @@ public class AWSSDK {
             region2LocationLookupProps.putAll( AWSRegions2Locations );
             bNeverRan_LocationLookup = false;
         }
-        return region2LocationLookupProps.getProperty( "AWS-"+ _regionStr );
+        // Example: US-EAST-1 --> us-east-1 .. .. 'EU-West-1' -> 'eu-west-1'
+        return region2LocationLookupProps.getProperty( "AWS-"+ _regionStr.toLowerCase() );
     }
 
     //------------------------
     /**
      *  Given a NotNull region-name, will convert it to human-friendly name.  Example: for 'ap-northeast-1' as argument, the return value is 'Tokyo' (initial-capital always)
-     *  @param _locationStr pass in valid AWS region names like 'us-east-2', 'us-west-1', 'ap-northeast-1' ..
+     *  @param _locationStr pass in valid AWS-Locations like 'virginia', 'Ohio', 'Tokyo', 'Seoul', 'SaoPaulo' .. (case-insensitive is OK)
      *  @return If _locationStr is _NOT_ actual AWS region, you'll get null.  Otherwise, a NotNull string
      *  @throws Exception any errors trying to load and parse the file at {@link #REGION2LOCATIONMAPPING}
      */
-    private String getRegion( final String _locationStr ) throws Exception {
+    private String getRegion( String _locationStr ) throws Exception {
         if ( bNeverRan_RegionLookup ) {
             final Properties AWSLocations2Regions = org.ASUX.common.Utils.parseProperties( "@"+ LOCATION2REGIONMAPPING ); 
             location2RegionLookupProps.putAll( AWSLocations2Regions );
             bNeverRan_RegionLookup = false;
         }
+        // Example: toKYo --> Tokyo .. .. 'SYDNEY' -> 'Sydney'
+        _locationStr = _locationStr.toLowerCase();
+        _locationStr = Character.toUpperCase( _locationStr.charAt(0) ) + _locationStr.substring( 1 );
         return location2RegionLookupProps.getProperty( "AWS-"+ _locationStr );
+    }
+
+    //------------------------
+    /**
+     *  <p>This utility method is to understand what the user _SLOPPILY_ entered - no matter either 'us-east-1' or 'virGiNia' (in any char-case).</p>
+     *  @param _userInput any Nullable String, case-insensitive is OK.
+     *  @return Nullable in 2 scenarios: if input-argument is null - or - if input-argument is neither an AWS RegionString(like 'us-east-1') nor is it an AWS Location(like 'Virginia')
+     *  @throws Exception anything thrown by {@link #getRegion(String)} and {@link #getLocation(String)} - which are invoked by this method.
+     */
+    public Tuple<String,String> getRegionAndLocation( final String _userInput ) throws Exception {
+        if ( _userInput == null )
+            return null;
+        final String s = _userInput.toLowerCase();
+        if ( this.matchesAWSRegionPattern( s ) ) {
+            final String AWSLocation = this.getLocation( s );
+            return new Tuple<String,String>( s, AWSLocation );
+        }
+        // Ok. so _userInput is __NOT__ of the type 'eu-west-1'
+        // Perhaps, it is so,mething like 'Tokyo' or 'virGiNia'
+        final String AWSRegion = this.getRegion( _userInput );
+        if ( AWSRegion != null ) {
+            // Example: toKYo --> Tokyo .. .. 'SAOPAULO' -> 'Saopaulo'
+            String l = _userInput.toLowerCase();
+            l = Character.toUpperCase( l.charAt(0) ) + l.substring( 1 );
+            return new Tuple<String,String>( AWSRegion, l );
+        }
+        return null; // neither an AWS RegionString (like 'us-east-1') nor is it an AWS LocationString (like 'Virginia')
     }
 
     //==============================================================================
