@@ -216,6 +216,11 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
             final SequenceNode seqNode3 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZDetailsList, this.getDumperOptions() );
             return seqNode3;
         //-------------------------------------------
+        case s364HexCanonicalId:       // "--s3-canonicalid-64char-hex"
+            final String s364hexid = awssdk.getS3CanonicalUserId_as64digitHexadecimal( this.cmdlineargsaws.getAWSRegion() );
+            final ScalarNode scalar64HexId = new ScalarNode( Tag.STR, s364hexid, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            return scalar64HexId;
+        //-------------------------------------------
         case createKeyPair:     // "--create-keypair"
             final String AWSRegion = this.cmdlineargsaws.getAWSRegion();
             final String mySSHKeyName = this.cmdlineargsaws.getSubParameter2();
