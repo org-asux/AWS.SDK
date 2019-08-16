@@ -86,13 +86,24 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.SdkClientException;
 
+// https://docs.aws.amazon.com/sdk-for-java/v2/migration-guide/client-credential.html
 // https://github.com/eugenp/tutorials/tree/master/aws/src/main/java/com/baeldung
-// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
-// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/package-summary.html
 import com.amazonaws.auth.AWSCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials; // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/auth/credentials/AwsCredentials.html
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials; // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/auth/credentials/AwsBasicCredentials.html
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Regions;
+// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/auth/credentials/StaticCredentialsProvider.html
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/model/package-summary.html
+// import com.amazonaws.regions.Region;    // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/regions/Region.html
+// import com.amazonaws.regions.Regions;
+    // !!!!! IMPORTANT see https://docs.aws.amazon.com/sdk-for-java/v2/migration-guide/client-region.html
+// import software.amazon.awssdk.regions.Region; // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/regions/Region.html
+    // !!!!! IMPORTANT see https://docs.aws.amazon.com/sdk-for-java/v2/migration-guide/client-region.html
+// see also com.amazonaws.services.ec2.model.Region (imported via com.amazonaws.services.ec2.model.*)
 
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/ec2/AmazonEC2.html
 import com.amazonaws.services.ec2.AmazonEC2; // <<------- !!!!!!!!  This is an _INTERFACE_;  A Concrete implementation-class is 'AmazonEC2Client'
@@ -156,6 +167,25 @@ import com.amazonaws.services.ec2.model.DescribeInternetGatewaysResult;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketConfiguration;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
+// https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/examples-s3-buckets.html#list-buckets
+// http://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/ListBucketsRequest.html
+import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
+// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/ListBucketsResponse.html
+import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/Bucket.html
+import software.amazon.awssdk.services.s3.model.Bucket;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Permission.html
+import  com.amazonaws.services.s3.model.Permission;
+// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/Owner.html
+import software.amazon.awssdk.services.s3.model.Owner;
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Grantee.html   <-- this is an Interface
+// https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/CanonicalGrantee.html  <-- implementation of Grantee interface
+import com.amazonaws.services.s3.model.Grantee;
+
 
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/route53/AmazonRoute53.html#listResourceRecordSets-com.amazonaws.services.route53.model.ListResourceRecordSetsRequest-
 import com.amazonaws.services.route53.AmazonRoute53;
@@ -226,8 +256,19 @@ public class AWSSDK {
     //==============================================================================
 
     private boolean bTried2Authenticate = false;
-    private AWSCredentials aws_credentials = null;
-    private AWSStaticCredentialsProvider AWSAuthenticationHndl = null;
+    private com.amazonaws.auth.AWSCredentials aws_credentials = null;
+    private software.amazon.awssdk.auth.credentials.AwsCredentials amazon_credentials = null;
+
+    /** Compare and contrast between these 2: {@link #AWSAuthenticationHndl} and {@link #AmazonAuthenticationHndl}
+     *  @see #getAmazonAuthenticationHndl()
+     *  @see #getAWSAuthenticationHndl()
+     */
+    private com.amazonaws.auth.AWSStaticCredentialsProvider AWSAuthenticationHndl = null;
+    /** Compare and contrast between these 2: {@link #AWSAuthenticationHndl} and {@link #AmazonAuthenticationHndl}
+     *  @see #getAmazonAuthenticationHndl()
+     *  @see #getAWSAuthenticationHndl()
+     */
+    private software.amazon.awssdk.auth.credentials.AwsCredentialsProvider AmazonAuthenticationHndl = null;
 
     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     private static AWSSDK singleton = null;
@@ -301,10 +342,14 @@ public class AWSSDK {
     //==============================================================================
 
     /**
-     * If already logged in, get me a handle - to pass to my own AWS SDK invocations.
-     * If not logged in already, an Exception will be thrown
-     * @return the handle to a previously successful AWS login-connection
-     * @throws MyAWSException if code has Not yet logged in with AWS credentials
+     *  <p>!!!!!!! ATTENTION !!!!!!!! This relies on com.amazonaws.auth.AWSStaticCredentialsProvider</p>
+     *  <p>For use _INTERNALLY_ by huge-majority of methods of this class.  Contrast it with {@link #getAmazonAuthenticationHndl()}</p>
+     *  <p>If already logged in, get me a handle - to pass to my own AWS SDK invocations.</p>
+     *  <p>If not logged in already, an Exception will be thrown</p>
+     *  @return the handle to a previously successful AWS login-connection
+     *  @throws MyAWSException if code has Not yet logged in with AWS credentials
+     *  @see #getAmazonAuthenticationHndl()
+     *  @see #getAWSAuthenticationHndl()
      */
     private AWSStaticCredentialsProvider getAWSAuthenticationHndl() throws MyAWSException {
         if ( this.offline )
@@ -316,6 +361,25 @@ public class AWSSDK {
     }
 
     /**
+     *  <p>!!!!!!! ATTENTION !!!!!!!! This relies on software.amazon.awssdk.auth.credentials.AwsCredentialsProvider</p>
+     *  <p>For use _INTERNALLY_ by S3 methods like: {@link #listBuckets(String)} and {@link #getS3CanonicalUserId_as64digitHexadecimal(String)}</p>
+     *  <p>If already logged in, get me a handle - to pass to my own AWS SDK invocations.</p>
+     *  <p>If not logged in already, an Exception will be thrown</p>
+     *  @return the handle to a previously successful AWS login-connection
+     *  @throws MyAWSException if code has Not yet logged in with AWS credentials
+     *  @see #getAmazonAuthenticationHndl()
+     *  @see #getAWSAuthenticationHndl()
+     */
+    private software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getAmazonAuthenticationHndl() throws MyAWSException {
+        if ( this.offline )
+            throw new MyAWSException( CLASSNAME +": getAWSAuthenticationHndl(no-arg): INTERNAL SERIOUS ERROR: !!!! Logic-mistake in code !!!! UN-expectedly invoked the AWSAuthenticate(AccessKey,SecretKey) function." );
+        else if ( this.AmazonAuthenticationHndl == null )
+            throw new MyAWSException( CLASSNAME +": getAWSAuthenticationHndl(no-arg): code hasn't !!!!SUCCESSFULLY!!!! invoked the AWSAuthenticate(AccessKey,SecretKey) function." );
+        else 
+            return this.AmazonAuthenticationHndl;
+    }
+
+    /**
      *  Login into AWS using the credentials provided.  This invocation is a pre-requisite before invoking any other non-static method in this class.
      *  @param _AWSAccessKeyId your AWS credential with API-level access as appropriate
      *  @param _AWSSecretAccessKey your AWS credential with API-level access as appropriate
@@ -324,13 +388,20 @@ public class AWSSDK {
         assertTrue ( this.offline == false );
             // throw new MyAWSException( CLASSNAME +": AWSAuthenticate(..,..): INTERNAL SERIOUS ERROR: !!!! Logic-mistake in code !!!! UN-expectedly invoked the this method." );
         this.bTried2Authenticate = true;
+
         showProgressbar( false, ProgressBarMileStones.STARTING, "Logging in" );
-        // Authenticate into AWS
-        // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
-        this.aws_credentials = new BasicAWSCredentials( _AWSAccessKeyId, _AWSSecretAccessKey );
+        // Authenticate into AWS // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
+        this.aws_credentials = new com.amazonaws.auth.BasicAWSCredentials( _AWSAccessKeyId, _AWSSecretAccessKey );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
+        this.amazon_credentials = software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create( _AWSAccessKeyId, _AWSSecretAccessKey );
+                                // https://github.com/aws/aws-sdk-java-v2/blob/master/core/auth/src/main/java/software/amazon/awssdk/auth/credentials/AwsBasicCredentials.java
         showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
 
-        this.AWSAuthenticationHndl = new AWSStaticCredentialsProvider( this.aws_credentials );
+        //------------------------
+        this.AWSAuthenticationHndl = new com.amazonaws.auth.AWSStaticCredentialsProvider( this.aws_credentials );
+        showProgressbar( false, ProgressBarMileStones.INPROGRESS, null );
+
+        this.AmazonAuthenticationHndl = software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create( this.amazon_credentials );
         showProgressbar( false, ProgressBarMileStones.COMPLETED, null );
     }
 
@@ -791,7 +862,7 @@ public class AWSSDK {
         showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
 
         final ArrayList<String> retarr = new ArrayList<String>();
-        for(Region region : regions_response.getRegions()) {
+        for(com.amazonaws.services.ec2.model.Region region : regions_response.getRegions()) {
             // System.out.printf( "Found region %s with endpoint %s\n", region.getRegionName(), region.getEndpoint());
             retarr.add( region.getRegionName() );
         }
@@ -1176,7 +1247,7 @@ public class AWSSDK {
      *  @see #isValidS3Bucket(String, String)
      */
     public boolean doesBucketExist( final String _regionStr, final String _s3bucketname ) {
-        final String HDR = CLASSNAME +"doesBucketExist("+ _s3bucketname +"): ";
+        final String HDR = CLASSNAME +": doesBucketExist("+ _s3bucketname +"): ";
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
         final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
         try {
@@ -1195,18 +1266,45 @@ public class AWSSDK {
     //==============================================================================
 
     /**
-     *  <p>Whether __you__ have permissions to this bucket, if it exists in the 1st place.</p>
+     *  <p>Whether __you__ can "see" the bucket.</p>
      *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
      *  @param _s3bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
      *  @return true if the Bucket exists in some region + whether you have any permissions allowed on it
      *  @see #doesBucketExist(String, String)
      */
     public boolean isValidS3Bucket( final String _regionStr, final String _s3bucketname ) {
-        final String HDR = CLASSNAME +"isValidS3Bucket("+ _s3bucketname +"): ";
+        final String HDR = CLASSNAME +": isValidS3Bucket("+ _s3bucketname +"): ";
         // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
         final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
         try {
-            boolean bFoundRWAcess = false;
+            return s3.doesBucketExistV2( _s3bucketname ); // <<---- Note the 'V2' suffix to the method.
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        }
+        if ( this.verbose ) System.err.println( HDR + "Failed to access ACL for bucket!!!!!!!!!" );
+        // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
+        return false;
+    }
+
+    //==============================================================================
+    public static enum S3Permissions { FULL_CONTROL, READ, READWRITE, NONE, UNDEFINED };
+
+    /**
+     *  <p>Whether __you__ have permissions to this bucket, if it exists in the 1st place.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation)
+     *  @param _s3bucketname NotNull String that must be _COMPLIANT with AWS-naming conventions for S3-buckets.  Will not verify whether this is a valid bucketname.  So, AWS APIs will throw Exception if invalid.
+     *  @param _hasPerm see {@link AWSSDK.S3Permissions}
+     *  @return true if the Bucket exists in some region + whether you have any permissions allowed on it
+     *  @see #doesBucketExist(String, String)
+     */
+    public boolean haveS3BucketAccess( final String _regionStr, final String _s3bucketname, final AWSSDK.S3Permissions _hasPerm ) {
+        final String HDR = CLASSNAME +": haveS3BucketAccess("+ _s3bucketname +"): ";
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        final AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            boolean bAcessAvailable = false;
             final com.amazonaws.services.s3.model.AccessControlList acl = s3.getBucketAcl( _s3bucketname );
             final List<com.amazonaws.services.s3.model.Grant> grants = acl.getGrantsAsList();
             if ( this.verbose ) System.out.println( HDR + "grants has '"+ grants.size() + " entries" );
@@ -1219,26 +1317,153 @@ public class AWSSDK {
                 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/model/Permission.html
                 // This is an ENUM with valid values: FullControl, Read, Write, ReadAcp, WriteAcp
                 final com.amazonaws.services.s3.model.Permission perm = grant.getPermission();
-                bFoundRWAcess = bFoundRWAcess || ( perm == com.amazonaws.services.s3.model.Permission.Write ) || ( perm == com.amazonaws.services.s3.model.Permission.FullControl );
-                if ( this.verbose ) System.out.println( HDR + "granteeId='"+ granteeId + " typeid='"+ typeid + " perm='"+ perm );
+                // if ( this.verbose )
+System.out.println( HDR + "granteeId='"+ granteeId + " typeid='"+ typeid + " perm='"+ perm );
 // S3Bucket(org-asux-aws-cfn): grants has '6 entries
-// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
-// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb  typeid='id perm='FULL_CONTROL
 // S3Bucket(org-asux-aws-cfn): granteeId='http://acs.amazonaws.com/groups/global/AllUsers                   typeid='uri perm='READ
-// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb  typeid='id perm='FULL_CONTROL
 // S3Bucket(org-asux-aws-cfn): granteeId='http://acs.amazonaws.com/groups/s3/LogDelivery                    typeid='uri perm='READ
-// S3Bucket(org-asux-aws-cfn): granteeId='c7c930ed985964095a51c6993c895da4294700f3cc8cc8347cef99d42ffdbdeb  typeid='id perm='FULL_CONTROL
+// S3Bucket(org-asux-aws-cfn): granteeId='c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb  typeid='id perm='FULL_CONTROL
+                boolean thisPermOffersAccess = false;
+                thisPermOffersAccess = thisPermOffersAccess ||  ( _hasPerm == AWSSDK.S3Permissions.FULL_CONTROL && perm == com.amazonaws.services.s3.model.Permission.FullControl );
+                thisPermOffersAccess = thisPermOffersAccess ||  ( _hasPerm == AWSSDK.S3Permissions.READWRITE &&
+                        ( perm == com.amazonaws.services.s3.model.Permission.FullControl || perm == com.amazonaws.services.s3.model.Permission.Write )   );
+                thisPermOffersAccess = thisPermOffersAccess ||  ( _hasPerm == AWSSDK.S3Permissions.READ &&
+                        ( perm == com.amazonaws.services.s3.model.Permission.FullControl || perm == com.amazonaws.services.s3.model.Permission.Read )   );
+                // Next verify if I am the owner.
+                final String bucketOwnerID_as64digitHexId = this.getS3CanonicalUserId_as64digitHexadecimal(_regionStr);
+                if ( this.verbose ) System.out.println( HDR + "'I' am (bucketOwnerID_as64digitHexId)="+ bucketOwnerID_as64digitHexId + ".. does it Match 'granteeId' ? ="+ (granteeId.equals(bucketOwnerID_as64digitHexId)) );
+//org.ASUX.yaml.AWSSDK: haveS3BucketAccess(org-asux-aws-cfn): 'I' am (bucketOwnerID_as64digitHexId)=c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb.. does it Match 'granteeId' ? =true
+                thisPermOffersAccess = thisPermOffersAccess && granteeId.equals( bucketOwnerID_as64digitHexId ) ;
+                bAcessAvailable = bAcessAvailable || thisPermOffersAccess;
+                if ( bAcessAvailable ) break; // why bother continuing UNnecessarily.
             }
-            return s3.doesBucketExistV2( _s3bucketname ); // <<---- Note the 'V2' suffix to the method.
+            return bAcessAvailable;
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (Exception e) { // thrown by this.getS3CanonicalUserId_as64digitHexadecimal(..)
+            if ( this.verbose ) e.printStackTrace( System.err );
+        }
+        System.err.println( HDR + "Failed to access bucket!!!!!!!!!" );
+        // if ( this.verbose ) System.err.println( HDR + "Failed to access ACL for bucket!!!!!!!!!" );
+        // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
+        return false;
+    }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  <p>In the region specified, list all the buckets that "I/YOU" own.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation).  But be valid AWS Region string.
+     *  @return NotNull ArrayList of BucketNames(java.lang.String).  Empty-list if NO buckets.
+     *  @see #doesBucketExist(String, String)
+     *  @throws Exception if basic-AWS-SDK failure or Amazon-API connectivity failure or Connectivity failure or Access-Denied failure
+     */
+    public ArrayList<String> listBuckets( final String _regionStr ) throws Exception {
+        final String HDR = CLASSNAME +": listBuckets("+ _regionStr +"): ";
+        final software.amazon.awssdk.regions.Region regionId = software.amazon.awssdk.regions.Region.of(_regionStr);
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html  // FYI: (this.AWSAuthenticationHndl) is of java-class/type 'AWSStaticCredentialsProvider'
+        final S3Client s3 = S3Client.builder().credentialsProvider( this.AmazonAuthenticationHndl ).region( regionId ).build();
+        // final S3Client s3 = S3Client.builder().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            final ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
+            final ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
+// "Owner": {
+//     "DisplayName": "sarma@bellatlantic.net", 
+//     "ID": "c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb"
+// }, 
+// "Buckets": [
+//     {
+//         "CreationDate": "2019-05-09T19:29:46.000Z", 
+//         "Name": "asux.org"
+//     }, 
+//     ..
+//  ]
+            // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/Owner.html
+            final software.amazon.awssdk.services.s3.model.Owner owner = listBucketsResponse.owner();
+            final String ownerName = owner.displayName();
+            final String ownerId = owner.id();
+            if ( this.verbose ) System.err.println( HDR +"ownerName="+ ownerName +" ownerId="+ ownerId +"." );
+// org.ASUX.yaml.AWSSDK: listBuckets(us-east-1): ownerName=sarma@bellatlantic.net ownerId=c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb.
+            final List<Bucket> buckets = listBucketsResponse.buckets();
+            final ArrayList<String> retarr = new ArrayList<>();
+            for( Bucket bucket: buckets ) {
+                // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/Bucket.html
+                final String bucketname = bucket.name();
+                final java.time.Instant instantOfTime = bucket.creationDate();
+                if ( this.verbose ) System.err.println( HDR +"bucketname="+ bucketname +" CreationDate="+ instantOfTime.toString() +"." );
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=asux.org CreationDate=2019-05-09T19:29:46Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-ap-northeast-1 CreationDate=2019-06-12T20:17:45Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-ap-south-1 CreationDate=2019-05-21T19:07:19Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-ap-southeast-1 CreationDate=2019-05-21T19:08:08Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-ap-southeast-2 CreationDate=2019-04-04T23:31:22Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-us-east-1 CreationDate=2019-04-01T23:26:55Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=cf-templates-1d9qqfsqsju9d-us-east-2 CreationDate=2019-04-02T21:35:25Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=org-asux CreationDate=2019-05-09T19:02:10Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=org-asux-aws-cfn CreationDate=2019-08-08T19:21:52Z.
+// org.ASUX.yaml.AWSSDKisValidS3Bucket(us-east-1): bucketname=org.asux CreationDate=2019-08-06T22:12:26Z.
+                retarr.add( bucketname );
+            }
+            return retarr;
         } catch (AmazonServiceException e) {
             if ( this.verbose ) e.printStackTrace( System.err );
         } catch (AmazonClientException e) {
             if ( this.verbose ) e.printStackTrace( System.err );
         }
-        if ( this.verbose ) System.err.println( HDR + "Failed to access ACL for bucket!!!!!!!!!" );
-        // throw new Exception( "Failed to access the S3-bucket with name ''"+ _s3bucketname +"'" );
-        return false;
+        if ( this.verbose ) System.err.println( HDR + "Failed to List buckets!!!!!!!!!" );
+        throw new Exception( "Failed to list S3-buckets in the region ''"+ _regionStr +"', to get the bucketnames" );
     }
+
+    //==============================================================================
+    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    //==============================================================================
+
+    /**
+     *  <p>In the region specified, list all the buckets that "I/YOU" own.</p>
+     *  @param _regionStr NotNull string for the AWSRegion (Not the AWSLocation).  But be valid AWS Region string.
+     *  @return Nullable String.  If Not null, it will be a CanonicalUserID that is a 64-digit-HEXADECIMAL-only value
+     *  @see #listBuckets(String)
+     *  @see #isValidS3Bucket(String, String)
+     *  @throws Exception if basic-AWS-SDK failure or Amazon-API connectivity failure or Connectivity failure or Access-Denied failure
+     */
+    public String getS3CanonicalUserId_as64digitHexadecimal( final String _regionStr ) throws Exception {
+        final String HDR = CLASSNAME +": getS3CanonicalUserId_as64digitHexadecimal("+ _regionStr +"): ";
+        final software.amazon.awssdk.regions.Region regionId = software.amazon.awssdk.regions.Region.of(_regionStr);
+        // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/AmazonS3Client.html
+        // https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html  // FYI: (this.AWSAuthenticationHndl) is of java-class/type 'AWSStaticCredentialsProvider'
+        final S3Client s3 = S3Client.builder().credentialsProvider( this.AmazonAuthenticationHndl ).region( regionId ).build();
+        // final S3Client s3 = S3Client.builder().withCredentials( this.AWSAuthenticationHndl ).withRegion( _regionStr==null?"us-east-2":_regionStr ).build();
+        try {
+            final ListBucketsRequest listBucketsRequest = ListBucketsRequest.builder().build();
+            final ListBucketsResponse listBucketsResponse = s3.listBuckets(listBucketsRequest);
+// "Owner": {
+//     "DisplayName": "sarma@bellatlantic.net", 
+//     "ID": "c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb"
+// }, 
+// "Buckets": [   .. ] // see this.listBuckets(String)
+            // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/model/Owner.html
+            final software.amazon.awssdk.services.s3.model.Owner owner = listBucketsResponse.owner();
+            final String ownerName = owner.displayName();
+            final String ownerId = owner.id();
+            if ( this.verbose ) System.err.println( HDR +"ownerName="+ ownerName +" ownerId="+ ownerId +"." );
+// org.ASUX.yaml.AWSSDK: getS3CanonicalUserId_as64digitHexadecimal(us-east-1): ownerName=sarma@bellatlantic.net ownerId=c7ca77e9859ec195a51c69d3c895da42dc4700f3bc8cf8347cef33d424fdbdeb.
+            return ownerId;
+        } catch (AmazonServiceException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        } catch (AmazonClientException e) {
+            if ( this.verbose ) e.printStackTrace( System.err );
+        }
+        if ( this.verbose ) System.err.println( HDR + "Failed to List buckets!!!!!!!!!" );
+        throw new Exception( "Failed to list S3-buckets in the region ''"+ _regionStr +"', to get S3CanonicalUserId as 64digitHexadecimal" );
+    }
+
 
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1773,12 +1998,6 @@ public class AWSSDK {
     //==============================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //==============================================================================
-
-    // private void  CLIPBOARD( final String _regionStr ) {
-    //     // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Region.html
-    //     final Region myRegion = new Region().withRegionName( _regionStr );
-    //     // AmazonEC2Client.serviceMetadata().regions().forEach(System.out::println);
-    // }
 
     public static void main(String[] args) {
         try {
