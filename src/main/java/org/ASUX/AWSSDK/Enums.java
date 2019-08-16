@@ -49,6 +49,9 @@ public final class Enums
         describeVPCs ("describe-vpcs"),
         listAZs ("list-AZs"),
         describeAZs ("describe-AZs"),
+
+        s364HexCanonicalId("s3-64char-hex-canonicalid"),
+
         createKeyPair ("create-key-pair"),
         deleteKeyPair ("delete-key-pair"),
         listKeyPairs  ("describe-key-pairs"),

@@ -63,6 +63,9 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
     public static final String[] DESCRIBEVPCS = { "vpcs", "describe-vpcs", "describe all details (incl. tags) of ALL VPCs in a specified region" };
     public static final String[] LISTAZS = { "laz", "list-AZs", "List all the AZs in a specified region" };
     public static final String[] DESCRIBEAZS = { "dz", "describe-AZs", "describe all the AZs in a specified region" };
+
+    public static final String[] S364HEX_CANONICALID = { "s3hex", "s3-canonicalid-64char-hex", "get *MY* 64-character long all-hexadecimal S3-Canonical-ID, to compare with owner-id listed in S3 access-rights" };
+
     public static final String[] CREATEKEYPAIR = { "ck", "create-key-pair", "create a new keypair within a specified region, with the provided-name of the keypair" };
     public static final String[] DELETEKEYPAIR = { "dk", "delete-key-pair", "delete an existing keypair in a specified region and the name of the keypair" };
     public static final String[] LISTKEYPAIR = { "lk", "describe-key-pairs", "show all keypair within a specified region, matching the provided-name of the keypair" };
@@ -93,11 +96,14 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
         grp.addOption( opt );
         opt = CmdLineArgsCommon.genOption( DESCRIBEVPCS[0], DESCRIBEVPCS[1], DESCRIBEVPCS[2], 1, "region" );
         grp.addOption( opt );
-
         opt = CmdLineArgsCommon.genOption( LISTAZS[0], LISTAZS[1], LISTAZS[2], 1, "region" );
         grp.addOption( opt );
         opt = CmdLineArgsCommon.genOption( DESCRIBEAZS[0], DESCRIBEAZS[1], DESCRIBEAZS[2], 1, "region" );
         grp.addOption( opt );
+
+        opt = CmdLineArgsCommon.genOption( S364HEX_CANONICALID[0], S364HEX_CANONICALID[1], S364HEX_CANONICALID[2], 1, "region" );
+        grp.addOption( opt );
+
         opt = CmdLineArgsCommon.genOption( CREATEKEYPAIR[0], CREATEKEYPAIR[1], CREATEKEYPAIR[2], 2, "region> <New-SSHKeyPair-Name" );
         grp.addOption( opt );
         opt = CmdLineArgsCommon.genOption( DELETEKEYPAIR[0], DELETEKEYPAIR[1], DELETEKEYPAIR[2], 2, "region> <ExistingSSHKeyPair-Name" );
@@ -146,6 +152,12 @@ public class CmdLineArgsAWS extends org.ASUX.yaml.CmdLineArgsCommon {
             this.cmdType = Enums.SDKCommands.describeAZs;
             this.AWSRegion = _apacheCmdProcessor.getOptionValue( DESCRIBEAZS[1] );
         }
+
+        if ( _apacheCmdProcessor.hasOption(S364HEX_CANONICALID[1]) ) {
+            this.cmdType = Enums.SDKCommands.s364HexCanonicalId;
+            this.AWSRegion = _apacheCmdProcessor.getOptionValue( S364HEX_CANONICALID[1] );
+        }
+
         if ( _apacheCmdProcessor.hasOption(CREATEKEYPAIR[1]) ) {
             this.cmdType = Enums.SDKCommands.createKeyPair;
             final String[] subParams = _apacheCmdProcessor.getOptionValues( CREATEKEYPAIR[1] ); // CmdLineArgsBasic.INSERTCMD[1] );
