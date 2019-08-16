@@ -87,6 +87,11 @@ CmdLine.on('command:describe-AZs', function () {
 	processAWSSDKCmd( COMMAND );
 });
 
+CmdLine.on('command:s3-canonicalid-64char-hex', function () { // Note: using the shorter version 's3hex' will NOT work for user (on the commandline).
+	COMMAND="s3-canonicalid-64char-hex";
+	processAWSSDKCmd( COMMAND );
+});
+
 CmdLine.on('command:create-key-pair', function () {
 	COMMAND="create-key-pair";
 	processAWSSDKCmd( COMMAND );
