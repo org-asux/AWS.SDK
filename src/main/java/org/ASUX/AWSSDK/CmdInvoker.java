@@ -37,6 +37,7 @@ import org.ASUX.YAML.NodeImpl.NodeTools;
 
 import org.ASUX.yaml.YAML_Libraries;
 import org.ASUX.yaml.MemoryAndContext;
+import org.ASUX.yaml.YAMLImplementation;
 import org.ASUX.YAML.NodeImpl.NodeTools;
 import org.ASUX.yaml.CmdLineArgs;
 
@@ -57,7 +58,6 @@ import org.yaml.snakeyaml.nodes.MappingNode;
 import org.yaml.snakeyaml.nodes.SequenceNode;
 import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.error.Mark; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/error/Mark.java
-import org.yaml.snakeyaml.DumperOptions; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/DumperOptions.java
 
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -79,71 +79,50 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
     public static final String CLASSNAME = CmdInvoker.class.getName();
 
     private CmdLineArgsAWS cmdlineargsaws;
-    private DumperOptions dumperopt;
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //=================================================================================
+
     /**
      *  The constructor exclusively for use by  main() classes anywhere.
      *  @param _verbose Whether you want deluge of debug-output onto System.out.
      *  @param _showStats Whether you want a final summary onto console / System.out
-     *  @param _dopt a non-null reference to org.yaml.snakeyaml.DumperOptions instance.  CmdInvoker can provide this reference.
      */
-    public CmdInvoker( final boolean _verbose, final boolean _showStats, final DumperOptions _dopt ) {
+    public CmdInvoker( final boolean _verbose, final boolean _showStats ) {
         super( _verbose, _showStats );
-        this.dumperopt = _dopt;
+    }
+
+    /**
+     *  Variation of constructor that allows you to pass-in memory from another previously existing instance of this class.  Useful within org.ASUX.YAML.NodeImp.BatchYamlProcessor which creates new instances of this class, whenever it encounters a YAML or AWS command within the Batch-file.
+     *  @param _verbose Whether you want deluge of debug-output onto System.out.
+     *  @param _showStats Whether you want a final summary onto console / System.out
+     *  @param _memoryAndContext pass in memory from another previously existing instance of this class.  Useful within org.ASUX.YAML.CollectionImpl.BatchYamlProcessor which creates new instances of this class, whenever it encounters a YAML or AWS command within the Batch-file.
+     */
+    public CmdInvoker( final boolean _verbose, final boolean _showStats, final MemoryAndContext _memoryAndContext ) {
+        super(_verbose, _showStats, _memoryAndContext );
     }
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     //=================================================================================
+    // /**
+    //  *  This function is meant to be used by Cmd.main() and by BatchProcessor.java.  Invoke this method *BEFORE* invoking {@link #processCommand(org.ASUX.yaml.CmdLineArgsCommon, Object)}.
+    //  *  @param _cmdLineArgs Everything passed as commandline arguments to the Java program {@link org.ASUX.yaml.CmdLineArgsCommon}
+    //  *  @throws Exception None for now.
+    //  */
+    // @Override
+    // public org.ASUX.yaml.YAMLImplementation<?> config( org.ASUX.yaml.CmdLineArgsCommon _cmdLineArgs ) throws Exception
+    // {   final String HDR = CLASSNAME + ": config("+ _cmdLineArgs +"): ";
+    //     // assertTrue( _cmdLineArgs instanceof org.ASUX.yaml.CmdLineArgs );
+    //     // final org.ASUX.yaml.CmdLineArgs cmdLineArgs = (org.ASUX.yaml.CmdLineArgs) _cmdLineArgs;
+    //     // final String HDR = CLASSNAME + ": config("+ cmdLineArgs.cmdType +"): ";
+    //     final YAMLImplementation<?> yi = YAMLImplementation.create( _cmdLineArgs.getYAMLLibrary() );
+    //     super.setYAMLImplementation(  yi );
+    //     if (_cmdLineArgs.verbose) System.out.println( HDR +" set YAML-Library to [" + _cmdLineArgs.getYAMLLibrary() + " === [" + super.getYAMLImplementation().getYAMLLibrary() + "]" );
 
-    // public void setCmdLineArgsAWS( final CmdLineArgsAWS _claa ) {
-    //     this.cmdlineargsaws = _claa;
+    //     return super.getYAMLImplementation();
     // }
-
-    public DumperOptions getDumperOptions() {
-        return this.dumperopt;
-    }
-
-    //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-    /**
-     * It makes NO SENSE to implement this method, but the parent class requires I add some code here.  Need a better design.
-     *  @return null
-     */
-    @Override
-    public YAML_Libraries getYamlLibrary() {
-        return null;
-    }
-
-    /**
-     * It makes NO SENSE to implement this method, but the parent class requires I add some code here.  Need a better design.
-     * @param _l the YAML-library to use going forward. See {@link YAML_Libraries} for legal values to this parameter
-     */
-    @Override
-    public void setYamlLibrary( final YAML_Libraries _l ) {
-        // do nothing
-    }
-
-    /**
-     * It makes NO SENSE to implement this method, but the parent class requires I add some code here.  Need a better design.
-     *  @return null
-     */
-    @Override
-    public Class<?> getLibraryOptionsClass() {
-        return null;
-    }
-
-    /**
-     * It makes NO SENSE to implement this method, but the parent class requires I add some code here.  Need a better design.
-     * @return null
-     */
-    @Override
-    public Object getLibraryOptionsObject() {
-        return null;
-    }
 
     //=================================================================================
     //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -161,64 +140,55 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
     public Object processCommand ( org.ASUX.yaml.CmdLineArgsCommon _cmdLA, final Object _ignore )
                 throws FileNotFoundException, IOException, Exception
     {
-        final String HDR = CLASSNAME + ": processCommand(): ";
-        // assertTrue( _inputData instanceof String );
+        assertTrue( _cmdLA instanceof CmdLineArgsAWS );
+        this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
+        final String HDR = CLASSNAME + ": processCommand("+ this.cmdlineargsaws.getCmdType() +",_inputData: ";// NOTE !!!!!! _cmdLA/CmdLineArgsCommon .. does NOT have 'cmdType' instance-variable
+
+        final NodeTools nodetools = (NodeTools) super.getYAMLImplementation();
+        assertTrue( nodetools != null );
+        assertTrue( nodetools.getDumperOptions() != null );
+        NodeTools.updateDumperOptions( nodetools.getDumperOptions(), _cmdLA.getQuoteType() ); // Important <<---------- <<---------- <<-----------
+
+        final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose, this.cmdlineargsaws.isOffline() );
 
         // aws.sdk ----list-regions
         // aws.sdk ----list-AZs         us-east-2
         // aws.sdk ----describe-AZs     us-east-2
         // in 'cmdLineArgsStrArr' below, we DROP the 'aws.sdk' leaving the rest of the parameters
 
-        assertTrue( _cmdLA instanceof CmdLineArgsAWS );
-        this.cmdlineargsaws = (CmdLineArgsAWS) _cmdLA;
-        final AWSSDK awssdk = AWSSDK.AWSCmdline( this.verbose, this.cmdlineargsaws.isOffline() );
-
         if (this.verbose) System.out.println( HDR +" cmdLineArgsStrArr has "+ this.cmdlineargsaws.getArgs().size() +" containing =["+ this.cmdlineargsaws.getArgs() +"]" );
         // the CmdLineArgsAWS class should take care of validating the # of cmd-line arguments and the type
-
-        //=======================================
-        if ( this.dumperopt == null ) { // this won't be null, if this object was created within BatchCmdProcessor.java
-            this.dumperopt = org.ASUX.YAML.NodeImpl.GenericYAMLWriter.defaultConfigurationForSnakeYamlWriter();
-        }
-        switch( this.cmdlineargsaws.getQuoteType() ) {
-            case DOUBLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.DOUBLE_QUOTED );  break;
-            case SINGLE_QUOTED: dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.SINGLE_QUOTED );  break;
-            case LITERAL:       dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.LITERAL );        break;
-            case FOLDED:        dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.FOLDED );         break;
-            case PLAIN:         dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.PLAIN );          break;
-            default:            dumperopt.setDefaultScalarStyle( org.yaml.snakeyaml.DumperOptions.ScalarStyle.FOLDED );         break;
-        }
 
         //-------------------------------------------
         switch( this.cmdlineargsaws.getCmdType() ) {
         case listRegions:       // "--list-regions"
             final ArrayList<String> regionsList = awssdk.getRegions( );
-            final SequenceNode seqNode = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, this.getDumperOptions() );
+            final SequenceNode seqNode = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, regionsList, nodetools.getDumperOptions() );
             return seqNode;
         //-------------------------------------------
         case getVPCID:           // simplifies use of 'describeVPCs' - just to get VPCID (of the 1st (perhaps only) VPC)
             final String vpcID = awssdk.getVPCID( this.cmdlineargsaws.getAWSRegion(), false );
-            final ScalarNode scalar = new ScalarNode( Tag.STR, vpcID, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            final ScalarNode scalar = new ScalarNode( Tag.STR, (vpcID==null?"null":vpcID), null, null, nodetools.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
             return scalar;
         //-------------------------------------------
         case describeVPCs:           // "--describe-vpcs"
             final ArrayList< LinkedHashMap<String,Object> > vpcList = awssdk.getVPCs( this.cmdlineargsaws.getAWSRegion(), false );
-            final SequenceNode seqNode5 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, vpcList, this.getDumperOptions() );
+            final SequenceNode seqNode5 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, vpcList, nodetools.getDumperOptions() );
             return seqNode5;
         //-------------------------------------------
         case listAZs:           // "--list-AZs"
             final ArrayList<String> AZList = awssdk.getAZs( this.cmdlineargsaws.getAWSRegion() );
-            final SequenceNode seqNode2 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, this.getDumperOptions() );
+            final SequenceNode seqNode2 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZList, nodetools.getDumperOptions() );
             return seqNode2;
         //-------------------------------------------
         case describeAZs:       // "--describe-AZs"
             final ArrayList< LinkedHashMap<String,Object> > AZDetailsList = awssdk.describeAZs( this.cmdlineargsaws.getAWSRegion() );
-            final SequenceNode seqNode3 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZDetailsList, this.getDumperOptions() );
+            final SequenceNode seqNode3 = NodeTools.ArrayList2Node( this.cmdlineargsaws.verbose, AZDetailsList, nodetools.getDumperOptions() );
             return seqNode3;
         //-------------------------------------------
         case s364HexCanonicalId:       // "--s3-canonicalid-64char-hex"
             final String s364hexid = awssdk.getS3CanonicalUserId_as64digitHexadecimal( this.cmdlineargsaws.getAWSRegion() );
-            final ScalarNode scalar64HexId = new ScalarNode( Tag.STR, s364hexid, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            final ScalarNode scalar64HexId = new ScalarNode( Tag.STR, (s364hexid==null?"null":s364hexid), null, null, nodetools.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
             return scalar64HexId;
         //-------------------------------------------
         case createKeyPair:     // "--create-keypair"
@@ -244,14 +214,14 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
                 System.err.println( "\n\n"+ HDR +"!!SERIOUS INTERNAL ERROR!! Why would the Path '"+ mySSHKeyFilePathStr +"' be invalid?\n\n" );
                 throw ipe;
             }
-            final ScalarNode scalar2 = new ScalarNode( Tag.STR, keyMaterial, null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+            final ScalarNode scalar2 = new ScalarNode( Tag.STR, keyMaterial, null, null, nodetools.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
             return scalar2;
         //-------------------------------------------
         case deleteKeyPair:     // "--delete-keypair"
             final String AWSRegion2 = this.cmdlineargsaws.getAWSRegion();
             final String mySSHKeyName2 = this.cmdlineargsaws.getSubParameter2();
             awssdk.deleteKeyPairEC2( AWSRegion2, mySSHKeyName2 );
-            final Node n = NodeTools.getEmptyYAML( this.getDumperOptions() );
+            final Node n = NodeTools.getEmptyYAML( nodetools.getDumperOptions() );
             return n;
         //-------------------------------------------
         case listKeyPairs:     // "--delete-keypair"
@@ -261,16 +231,16 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
                 mySSHKeyName3 = null;
             final List<com.amazonaws.services.ec2.model.KeyPairInfo> keys = awssdk.listKeyPairEC2( AWSRegion3, mySSHKeyName3 );
             final java.util.LinkedList<Node> seqs = new java.util.LinkedList<Node>();
-            final SequenceNode seqNode4 = new SequenceNode( Tag.SEQ, false,     seqs,         null, null, this.getDumperOptions().getDefaultFlowStyle() );
+            final SequenceNode seqNode4 = new SequenceNode( Tag.SEQ, false,     seqs,         null, null, nodetools.getDumperOptions().getDefaultFlowStyle() );
             for ( com.amazonaws.services.ec2.model.KeyPairInfo x: keys ) {
                 if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyName=\n"+ x.getKeyName() );
                 if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyFingerprint=\n"+ x.getKeyFingerprint() );
                 // if ( this.verbose) System.out.println( HDR +"DescribeKeyPairsResult KeyMaterial=\n"+ x.getKeyMaterial() ); <<-- NOT AVAILABLE, AFTER KEY has been created
-                // final ScalarNode k = new ScalarNode( Tag.STR, x.getKeyName(), null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
-                // final ScalarNode v = new ScalarNode( Tag.STR, x.getKeyFingerprint(), null, null, this.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+                // final ScalarNode k = new ScalarNode( Tag.STR, x.getKeyName(), null, null, nodetools.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
+                // final ScalarNode v = new ScalarNode( Tag.STR, x.getKeyFingerprint(), null, null, nodetools.getDumperOptions().getDefaultScalarStyle() ); // DumperOptions.ScalarStyle.PLAIN
                 // final java.util.List<NodeTuple> tuples = topNode.getValue();
                 // tuples.add( new NodeTuple( k, v ) );
-                final MappingNode mapNode = (MappingNode) NodeTools.getNewSingleMap( x.getKeyName(), x.getKeyFingerprint(), this.getDumperOptions() );
+                final MappingNode mapNode = (MappingNode) NodeTools.getNewSingleMap( x.getKeyName(), x.getKeyFingerprint(), nodetools.getDumperOptions() );
                 seqs.add ( mapNode );
             }
             return seqNode4;
@@ -299,7 +269,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
      */
     public Object getDataFromReference( final String _src )
                                 throws FileNotFoundException, IOException, Exception
-    {   //return InputsOutputs.getDataFromReference( _src, this.memoryAndContext, this.getYamlScanner(), this.getDumperOptions(), this.verbose );
+    {   //return InputsOutputs.getDataFromReference( _src, this.memoryAndContext, this.getYamlScanner(), nodetools.getDumperOptions(), this.verbose );
         final String HDR = CLASSNAME + ": getDataFromReference("+ _src +"): ";
         throw new Exception( "UNIMPLEMENTED METHOD: "+ HDR );
     }
@@ -320,7 +290,7 @@ public class CmdInvoker extends org.ASUX.yaml.CmdInvoker {
     public void saveDataIntoReference( final String _dest, final Object _input )
                             throws FileNotFoundException, IOException, Exception
     {
-        // InputsOutputs.saveDataIntoReference( _dest, _input, this.memoryAndContext, this.getYamlWriter(), this.getDumperOptions(), this.verbose );
+        // InputsOutputs.saveDataIntoReference( _dest, _input, this.memoryAndContext, this.getYamlWriter(), nodetools.getDumperOptions(), this.verbose );
         final String HDR = CLASSNAME + ": saveDataIntoReference("+ _dest +","+ _input.getClass().getName() +"): ";
         throw new Exception( "UNIMPLEMENTED METHOD: "+ HDR );
     }
