@@ -32,16 +32,11 @@
 
 package org.ASUX.AWSSDK;
 
+import org.ASUX.yaml.YAML_Libraries;
+import org.ASUX.yaml.YAMLImplementation;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
-
-// https://yaml.org/spec/1.2/spec.html#id2762107
-import org.yaml.snakeyaml.nodes.NodeId;
-import org.yaml.snakeyaml.nodes.Node;
-import org.yaml.snakeyaml.nodes.ScalarNode;
-import org.yaml.snakeyaml.nodes.MappingNode;
-import org.yaml.snakeyaml.nodes.SequenceNode;
-import org.yaml.snakeyaml.DumperOptions; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/DumperOptions.java
 
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -73,30 +68,31 @@ public class Cmd {
         CmdLineArgsAWS cmdlineargs = null;
 
         try {
-            // cmdlineargs = new CmdLineArgsAWS( args );
             cmdlineargs = CmdLineArgsAWS.create( args );
 
-            CmdInvoker cmdinvoker = new CmdInvoker( cmdlineargs.verbose, cmdlineargs.showStats, org.ASUX.YAML.NodeImpl.GenericYAMLWriter.defaultConfigurationForSnakeYamlWriter() );
+            // Step 1: create 'cmdinvoker'
+            final CmdInvoker cmdinvoker = new CmdInvoker( cmdlineargs.verbose, cmdlineargs.showStats );
             if (cmdlineargs.verbose) System.out.println( HDR +"getting started with cmdline args = " + cmdlineargs + " " );
 
+            // Steps 2 & 3: Startup the factory for YAML-implementation.
+            // For other projects in the org.ASUX family, especially those that do NOT want to know the YAML-implementation.. use the following line instead.
+            final YAMLImplementation<?> yamlImpl = org.ASUX.yaml.YAMLImplementation.startupYAMLImplementationFactory( cmdlineargs.getYAMLLibrary(), cmdlineargs, cmdinvoker );
+            // final YAMLImplementation<?> yamlImpl = org.ASUX.yaml.YAMLImplementation.startupYAMLImplementationFactory( YAML_Libraries.SNAKEYAML_Library, cmdlineargs, cmdinvoker );
+            if (cmdlineargs.verbose) System.out.println( HDR +" set YAML-Library to [" + cmdlineargs.getYAMLLibrary() + " and [" + cmdinvoker.getYAMLLibrary() + "]" );
+
             //======================================================================
+            // Step 4 on.. start processing...
+
             // run the command requested by user
             final Object output = cmdinvoker.processCommand( cmdlineargs, null );
             if (cmdlineargs.verbose) System.out.println( HDR +" processing of entire command returned [" + (output==null?"null":output.getClass().getName()) + "]" );
 
             //======================================================================
             final java.io.StringWriter javawriter = new java.io.StringWriter();
-
-            final org.ASUX.YAML.NodeImpl.GenericYAMLWriter writer = new org.ASUX.YAML.NodeImpl.GenericYAMLWriter( cmdlineargs.verbose );
-            final DumperOptions dumperopts = cmdinvoker.getDumperOptions();
-            if (cmdlineargs.verbose) System.out.println( HDR +" GenericYAMLWriter writer has YAML-Library set to [" + writer.getYamlLibrary() + "]" );
-            if (cmdlineargs.verbose) org.ASUX.YAML.NodeImpl.NodeTools.printDumperOptions( dumperopts );
-
-            writer.prepare( javawriter, dumperopts );
-            writer.write( output, dumperopts );
+            yamlImpl.write( javawriter, output );
 
             //======================================================================
-            if (writer != null) writer.close(); // Yes! Even for stdout/System.out .. we need to call close(). This is driven by one the YAML libraries (eso teric soft ware)
+            yamlImpl.close(); // Yes! Even for stdout/System.out .. we need to call close(). This is driven by one the YAML libraries (eso teric soft ware)
             javawriter.flush();
 
             // Now since we have a surrogate for STDOUT for use by , let's dump its output onto STDOUT!
