@@ -77,7 +77,6 @@ import org.yaml.snakeyaml.nodes.SequenceNode;
 import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.error.Mark; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/error/Mark.java
-import org.yaml.snakeyaml.DumperOptions; // https://bitbucket.org/asomov/snakeyaml/src/default/src/main/java/org/yaml/snakeyaml/DumperOptions.java
 
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/AmazonServiceException.html
 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/AmazonClientException.html
@@ -608,7 +607,7 @@ public class AWSSDK {
         final InputStream is1 = new FileInputStream( _absoluteFilePath );
         final InputStreamReader filereader = new InputStreamReader(is1);
         final GenericYAMLScanner yamlscanner = new GenericYAMLScanner( this.verbose );
-        yamlscanner.setYamlLibrary( YAML_Libraries.NodeImpl_Library );
+        yamlscanner.setYAMLLibrary( YAML_Libraries.NodeImpl_Library );
         final Node node = yamlscanner.load( filereader );
         if ( this.verbose ) System.out.println( HDR +" file contents= '" + NodeTools.Node2YAMLString( node ) + "");
         return node;
@@ -773,7 +772,7 @@ public class AWSSDK {
         if ( ret.size() <= 0 )
             return null;
         else
-            return (String) ret.get( 0 ).get( "ID" ); // could be null - by definition of get().
+            return (String) ret.get( 0 ).get( VPC_ID ); // could be null - by definition of get().
     }
 
     /**
@@ -850,7 +849,7 @@ public class AWSSDK {
 
     /**
      *  Pass in a region-name and get back the output of the cmdline as JSON (cmdline being:- aws ec2 describe-regions --profile ______ --output json)
-     *  @return An array of YAML-Maps.  Its exactly === cmdline output of: aws ec2 describe-regions --profile ______ --output json
+     *  @return A NotNull array of YAML-Maps.  Its exactly === cmdline output of: aws ec2 describe-regions --profile ______ --output json
      *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
      */
     public ArrayList<String> getRegions() throws Exception {
@@ -929,13 +928,15 @@ public class AWSSDK {
      *  @return If no VPCs (imagine that! Not even a Default), you'll get null;  Otherwise. if argument is 'false' and No Non-default-VPCs, again a Null is returned. Otherwise, a NotNull string
      *  @throws Exception thrown if any issues reading the cached YAML files (if this library is in offline-mode {@link #offline}).
      */
-    public String getVPCID( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception {
+    public String getVPCID( final String _regionStr, final boolean _onlyNonDefaultVPC ) throws Exception
+    {   final String HDR = CLASSNAME +"getVPCID("+ _regionStr +","+ _onlyNonDefaultVPC +"): ";
         if ( this.offline ) return getVPCID_Offline( _regionStr, _onlyNonDefaultVPC );
 
         showProgressbar( false, ProgressBarMileStones.STARTING, "getVPCs" );
         for(LinkedHashMap<String,Object> vpc : this.getVPCs( _regionStr, _onlyNonDefaultVPC ) ) {
             showProgressbar( true, ProgressBarMileStones.COMPLETED, null );
-            return (String) vpc.get( "ID" ); // return the 1st element found.
+            if ( this.verbose) System.out.printf( "%s looking at VPC ID=%s details=%s\n", HDR, ""+vpc.get(VPC_ID), vpc.toString() );
+            return (String) vpc.get( VPC_ID ); // return the 1st element found.
         }
         return null;
     }
