@@ -1,0 +1,2 @@
+ !Logging in....  !getVPCs !AWS.SDK.EC2 init.  !describeVPCs.  !getVPCs... . . vpc-45095322
+
