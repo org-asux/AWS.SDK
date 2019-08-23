@@ -48,14 +48,15 @@ set TESTNUM=0
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} ${OFFLINE} aws.sdk create-key-pair ap-south-1 testSSHKeyPair2 --no-quote >&! ${OUTPFILE}.stdout
+asux ${VERBOSE} ${OFFLINE} aws sdk delete-key-pair ap-south-1 testSSHKeyPair2 --no-quote  >&! ${OUTPFILE}.stdout  ### Ignore this output.
+asux ${VERBOSE} ${OFFLINE} aws.sdk create-key-pair ap-south-1 testSSHKeyPair2 --no-quote  >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 # 2
 @ TESTNUM = $TESTNUM + 1
 set OUTPFILE=${OUTPUTFLDR}/test-${TESTNUM}
 echo $OUTPFILE
-asux ${VERBOSE} ${OFFLINE} aws.sdk describe-key-pairs ap-northeast-1 null --no-quote >&! ${OUTPFILE}.stdout
+asux ${VERBOSE} ${OFFLINE} aws.sdk describe-key-pairs ap-northeast-1 null --no-quote  >&! ${OUTPFILE}.stdout
 diff ${OUTPFILE}.stdout ${TEMPLATEFLDR}/test-${TESTNUM}.stdout
 
 # 3
