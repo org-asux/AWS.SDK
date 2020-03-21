@@ -1,8 +1,9 @@
 *~
-run2.csh
 .DS_Store
 **/.DS_Store
-src/.DS_Store
+**/*~
+.idea
+*.iml
 src/main/java/org/ASUX/yaml/Cmd.java copy
 src/main/java/org/ASUX/yaml/DeleteYamlEntry.java copy
 src/org
